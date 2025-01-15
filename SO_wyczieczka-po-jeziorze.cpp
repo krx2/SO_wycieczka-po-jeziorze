@@ -1,10 +1,11 @@
 #include <iostream>
+#include <unistd.h>
 
 
 int main()
 {
-    std::cout << "Witaj w programie \"Wycieczka £odziami po Jeziorze!\"\n";
-    std::cout << "Proszê wprowadziæ dane:\n";
+    std::cout << "Witaj w programie \"Wycieczka ï¿½odziami po Jeziorze!\"\n";
+    std::cout << "Proszï¿½ wprowadziï¿½ dane:\n";
     std::string T1, T2;
     int N1, N2, K;
     std::cout << "T1: ";
