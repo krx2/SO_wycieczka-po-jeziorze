@@ -29,6 +29,27 @@ int main() {
     catch(const std::exception& e) {
         std::cerr << e.what() << '\n';
     }
+
+    try {
+        pid_t czas = NowyProces("./kasjer");
+    }
+    catch(const std::exception& e) {
+        std::cerr << e.what() << '\n';
+    }
+
+    try {
+        pid_t czas = NowyProces("./pasazer");
+    }
+    catch(const std::exception& e) {
+        std::cerr << e.what() << '\n';
+    }
+
+    try {
+        pid_t czas = NowyProces("./policjant");
+    }
+    catch(const std::exception& e) {
+        std::cerr << e.what() << '\n';
+    }
     
 
     return 0;
