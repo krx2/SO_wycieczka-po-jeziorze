@@ -1,56 +1,36 @@
 #include <iostream>
 #include "classes.h"
+#include <wait.h>
 
 using namespace std;
 
 int main() {
 
+    pid_t mainp = getpid();
     key_t key;
-    key = ftok("mainp", 1);
-
-    SharedMemory SharedMemory(key, 1024, IPC_CREAT | 0666);
-    void* shmID = SharedMemory.attach();
-
-    MessageQueue(key, IPC_CREAT | 0666);
-
-    int* pamiec = static_cast<int*>(shmID);
-    pamiec[0] = 0;
-
-    try {
-        pid_t czas = NowyProces("./czas");
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
-
-    try {
-        pid_t czas = NowyProces("./sternik");
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
-
-    try {
-        pid_t czas = NowyProces("./kasjer");
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
-
-    try {
-        pid_t czas = NowyProces("./pasazer");
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
-
-    try {
-        pid_t czas = NowyProces("./policjant");
-    }
-    catch(const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
+    key = 1234;
     
+    SharedMem memory(1234, 1024);
+    memory.shm_create();
+    int* shared_mem = memory.shm_get();
+
+    shared_mem[0] = 0;
+   
+    pid_t pid_producent = fork();
+    if (pid_producent < 0) {
+        error("fork policjant");
+    } else if (pid_producent == 0) {
+        printf("Inicjowanie programu policjant\n");
+        execl("./policjant", "./policjant", NULL);
+        error("execl policjant");
+    }
+
+
+
+    wait(NULL);
+
+    memory.shm_detach(shared_mem);
+    memory.shm_delete();
 
     return 0;
 }
