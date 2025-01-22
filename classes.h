@@ -16,13 +16,19 @@ void error(const char* msg) {
     exit(EXIT_FAILURE);
 }
 
+/*struct msgbuf {
+    long mtype;
+    char mtext[1];
+};
+*/
+
 class SharedMem {
     key_t key;
-    size_t size;
+    int size;
     int id;
     
     public:
-    SharedMem(key_t memory_key, size_t memory_size) {
+    SharedMem(key_t memory_key, int memory_size) {
         key = memory_key;
         size = memory_size;
     }
@@ -50,5 +56,41 @@ class SharedMem {
     }
 
 };
+
+class MsgQueue {
+    key_t key;
+    int id;
+
+    public:
+    MsgQueue(key_t msg_key) {
+        key = msg_key;
+    }
+
+    void msg_create() {
+        id = msgget(key, IPC_CREAT | 0666);
+        if(id == -1) error("msgget error");
+    }
+
+    void msg_attach() {
+        id = msgget(key, 0666);
+        if(id == -1) error("msgget error");
+    }
+
+    void msg_send(int msgtype) {
+        msgbuf message = {.mtype = msgtype};
+        msgsnd(id, &message, 1, 0);
+    }
+
+    void msg_rcv(int msgtype) {
+        msgbuf message;
+        msgrcv(id, &message, 1, msgtype, 0);
+    }
+
+    void msg_ctl() {
+        if (msgctl(id, IPC_RMID, NULL) == -1) error("msgctl error");
+    }
+};
+
+
 
 #endif // CLASSES_H
