@@ -1,0 +1,55 @@
+Wycieczka po jeziorze
+1. mainp tworzy pamięci dzielone, kolejki komunikatów, semafory itp.
+2. mainp zapisuje do pamięci dzielonej: 
+	początkowy czas = 0
+	Tp Tk - czas początkowy, czas końcowy jako liczbę minut
+	T1, T2 - czas wycieczek w minutach
+	N1, N2 - pojemność łodzi 1, pojemność łodzi 2
+	K - pojemność pomostu
+3. mainp ustawia semafor startowy na 0 i odpala programy
+4. mainp podnosi semafor i rozpoczyna symulację
+
+Programy:
+sternik
+1. czeka na sygnał początkowy
+2. czeka na komunikat START
+3. w petli:
+	nadaje komunikat WYŁADUNEK
+	czeka aż wszyscy opuszczą statek
+	nadaje komunikat ZAŁADUNEK
+	sprawdza czy był komunikat KONIEC
+	wycieczka o czasie T1 lub T2
+kasjer
+1. czeka na sygnał początkowy
+2. w pętli:
+	bierze pierwszego klienta w kolejce
+	sprawdza czy klient już dzisiaj był, jeśli tak to jest VIP i -50%
+	if klient z dzieckiem to łódź 2
+	else if klient ma > 70 lat to łódź 2
+	else klient wybiera łódź
+	wysyła klienta na molo
+pasażer
+1. czeka na sygnał początkowy
+2. klienci ustawiają się do kolejki (tworzy pasażerów)
+3. każdy pasażer ma:
+	swoje ID (jest wątkiem)
+	int wiek od 15 do 80
+	int wiek dziecka od 1 do 14 lub 0 - nie ma dziecka
+	int zajmowane miejsce 1 - default, 2 - z dzieckiem
+	int pozycja 1 - kolejka do kasy, 2 - molo, 3 - pomost1, 4 - pomost2, 5 - łódź1, 6 - łódź2 lub 0 - nie ma go nad jeziorem
+	int bilet 0 - nie ma, 1 - wycieczka 1, 2 - wycieczka 2
+	double portfel
+4. Najpierw pasażer ustawia się do kolejki po bilet
+5. Płaci za bilet, jak nie ma to się wraca (pozycja 0)
+5. Potem pasażer ustawia się w kolejce na molo, kolejka VIP lub zwykła
+6. czeka na ZAŁADUNEK od swojego kapitana
+7. Pasażer wchodzi na pomost (tablica k-elementowa) jeśli jest miejsce
+
+
+policjant
+1. czeka na sygnał początkowy
+2. w pętli zapisuje czas do pamięć[0] i wypisuje godzinę na ekran
+3. na godzinę Tp wysyła komunikat START
+4. na godzinę Tk wysyła komunikat KONIEC
+5. może zakończyć wycieczki dla dowolnej łodzi wcześniej
+4. gdy dzień się skończy wysyła komunikat KONIEC
