@@ -4,13 +4,29 @@
 using namespace std;
 
 int main() {
-    key_t key;
-    key = ftok("mainp", 1);
+    
+    pid_t pid_sternik = getpid();
 
-    SharedMemory pamiec_dzielona(key, 1024, 0666);
-    MessageQueue kolejka_komunikatow(key, 0666);
+    pid_t pid_sternik1 = fork();
+    if (pid_sternik1 < 0) {
+        error("fork policjant");
+    }
 
-    void* shmID = pamiec_dzielona.attach();
-    int* pamiec = static_cast<int*>(shmID);
+    pid_t pid_sternik2;
+    if(getpid() == pid_sternik) {
+        pid_t pid_sternik1 = fork();
+        if (pid_sternik1 < 0) {
+            error("fork policjant");
+        }
+    }
 
+    while(true) {
+        if(getpid() == pid_sternik1) {
+
+        }
+
+        if(getpid() == pid_sternik2) {
+            
+        }
+    }
 }

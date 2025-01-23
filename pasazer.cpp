@@ -77,6 +77,7 @@ void* pasazerowie(void* arg) {
     kolejka_komunikatow.msg_rcv(3);
     // Klient wybiera bilet
     if(pamiec[1] == 1) { // Jak jest VIP to dowolny
+        klient.vip = true;
         if(klient.zdecyduj()) {
             pamiec[1] = 1;
         } else {
@@ -84,7 +85,7 @@ void* pasazerowie(void* arg) {
         }
     } else { // Jak nie ma VIP to mogą być ograniczenia
         if(klient.wiek > 70 || klient.wiek_dziecka > 0) { // Jak > 70 lat lub z dzieckiem to bilet 2
-            pamiec[1] = 2;  
+            pamiec[1] = 2;
         } else { // Inaczej decyduje
             if(klient.zdecyduj()) {
             pamiec[1] = 1;
@@ -93,6 +94,7 @@ void* pasazerowie(void* arg) {
             }
         }
     }
+    klient.bilet = pamiec[1];
     // Przekazuje informacje o biliecie kasjerowi
     kolejka_komunikatow.msg_send(4);
     kolejka_komunikatow.msg_rcv(5); // Kasjer pyta o dzieci
@@ -105,11 +107,28 @@ void* pasazerowie(void* arg) {
         pamiec[1] = 0; // Płatność nie przeszła
         kolejka_komunikatow.msg_send(8); // Mówi kasjerowi że nie ma tyle
         klient.status = 0;
+        klient.bilet = 0;
         printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %lf\n", klient.id, klient.portfel);
         return nullptr; // Klient opuszcza jezioro
     }
-    // Po transakcji klient idzie na molo
     printf("Transakcja udana: %d\n", klient.id);
+    // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
+    if(klient.bilet == 1) { // dla łodzi 1
+        if(klient.vip) {
+            pamiec[2]++; // liczba vipów czekająca na wejście
+            kolejka_komunikatow.msg_rcv(9); // komunikat załadunek dla vipów
+        } else {
+            kolejka_komunikatow.msg_rcv(10); // komunikat załadunek
+        }
+    } else { // dla łodzi 2
+        if(klient.vip) {
+            pamiec[3]++; // liczba vipów czekająca na wejście
+            kolejka_komunikatow.msg_rcv(11); // komunikat załadunek dla vipów
+        } else {
+            kolejka_komunikatow.msg_rcv(12); // komunikat załadunek
+        }
+    }
+
     return nullptr;
 }
 

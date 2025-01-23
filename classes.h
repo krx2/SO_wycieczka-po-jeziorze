@@ -57,6 +57,35 @@ class SharedMem {
 
 };
 
+class Sem {
+    key_t key;
+    int id;
+    
+    public:
+    Sem(key_t sem_key) {
+        key = sem_key;
+    }
+
+    void sem_create() {
+        id = semget(key, 100 ,IPC_CREAT | 0666);
+        if(id == -1) error("semget error");
+    }
+
+    void sem_attach() {
+        id = semget(key, 100 , 0666);
+        if(id == -1) error("semget error");
+    }
+
+    void sem_op(short sem_num, short sem_op) {
+        sembuf op = {sem_num, sem_op, 0};
+        if(semop(id, &op, 1) == -1) error("semop error");
+    }
+
+    void sem_ctl() {
+        
+    }
+};
+
 class MsgQueue {
     key_t key;
     int id;
