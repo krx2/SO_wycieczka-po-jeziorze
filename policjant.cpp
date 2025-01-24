@@ -1,4 +1,5 @@
 #include <iostream>
+#include <time.h>
 #include "classes.h"
 
 using namespace std;
@@ -9,16 +10,17 @@ int main() {
     memory.shm_attach();
     int* pamiec = memory.shm_get();
 
+    MsgQueue kolejka_komunikatow(1234);
+    kolejka_komunikatow.msg_attach();
+
+    Sem semafor(1234);
+    semafor.sem_attach();
+
+    semafor.sem_op(0, 0); // czekanie na start symulacji
+
     printf("Policjant działa\n");
 
-    while(true) {
-        cout << "Czas: " << pamiec[0]/60 << ":" << pamiec[0] % 60 << endl;
-        pamiec[0]++;
-        usleep(200);
-        if(pamiec[0]/60 == 1) {
-            break;
-        }
-    }
+    
 
     memory.shm_detach(pamiec);
 }

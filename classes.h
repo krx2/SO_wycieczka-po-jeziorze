@@ -66,23 +66,45 @@ class Sem {
         key = sem_key;
     }
 
-    void sem_create() {
-        id = semget(key, 100 ,IPC_CREAT | 0666);
-        if(id == -1) error("semget error");
+    void sem_create(int num_sems = 1) {
+        id = semget(key, num_sems, IPC_CREAT | IPC_EXCL | 0666);
+        if (id == -1) {
+            error("semget create error");
+        }
     }
 
     void sem_attach() {
-        id = semget(key, 100 , 0666);
-        if(id == -1) error("semget error");
+        id = semget(key, 0, 0666);
+        if (id == -1) {
+            error("semget attach error");
+        }
     }
 
     void sem_op(short sem_num, short sem_op) {
-        sembuf op = {sem_num, sem_op, 0};
-        if(semop(id, &op, 1) == -1) error("semop error");
+        struct sembuf op = {sem_num, sem_op, 0};
+        if (semop(id, &op, 1) == -1) {
+            error("semop error");
+        }
     }
 
-    void sem_ctl() {
-        
+    int sem_get_value(short sem_num) {
+        int value = semctl(id, sem_num, GETVAL);
+        if (value == -1) {
+            error("semctl GETVAL error");
+        }
+        return value;
+    }
+
+    void sem_set_value(short sem_num, int value) {
+        if (semctl(id, sem_num, SETVAL, value) == -1) {
+            error("semctl SETVAL error");
+        }
+    }
+
+    void sem_remove() {
+        if (semctl(id, 0, IPC_RMID) == -1) {
+            error("semctl IPC_RMID error");
+        }
     }
 };
 

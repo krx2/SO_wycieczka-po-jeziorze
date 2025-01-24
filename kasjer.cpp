@@ -34,6 +34,11 @@ int main() {
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
 
+    Sem semafor(1234);
+    semafor.sem_attach();
+
+    semafor.sem_op(0, 0); // czekanie na start symulacji
+
     printf("Kasjer działa\n");
 
     int obsluzeni[10000] = {0};

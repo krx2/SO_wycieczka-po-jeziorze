@@ -71,64 +71,65 @@ void* pasazerowie(void* arg) {
     
     kolejka_komunikatow.msg_rcv(1);
     klient.ustaw_do_kasy();
-    pamiec[1] = id;
+    pamiec[0] = id;
     kolejka_komunikatow.msg_send(2);
     // Klient czeka na informacje o zniżkach
     kolejka_komunikatow.msg_rcv(3);
     // Klient wybiera bilet
-    if(pamiec[1] == 1) { // Jak jest VIP to dowolny
+    if(pamiec[0] == 1) { // Jak jest VIP to dowolny
         klient.vip = true;
         if(klient.zdecyduj()) {
-            pamiec[1] = 1;
+            pamiec[0] = 1;
         } else {
-            pamiec[1] = 2;
+            pamiec[0] = 2;
         }
     } else { // Jak nie ma VIP to mogą być ograniczenia
         if(klient.wiek > 70 || klient.wiek_dziecka > 0) { // Jak > 70 lat lub z dzieckiem to bilet 2
-            pamiec[1] = 2;
+            pamiec[0] = 2;
         } else { // Inaczej decyduje
             if(klient.zdecyduj()) {
-            pamiec[1] = 1;
+            pamiec[0] = 1;
             } else {
-                pamiec[1] = 2;
+                pamiec[0] = 2;
             }
         }
     }
-    klient.bilet = pamiec[1];
+    klient.bilet = pamiec[0];
     // Przekazuje informacje o biliecie kasjerowi
     kolejka_komunikatow.msg_send(4);
     kolejka_komunikatow.msg_rcv(5); // Kasjer pyta o dzieci
-    pamiec[1] = klient.wiek_dziecka;
+    pamiec[0] = klient.wiek_dziecka;
     kolejka_komunikatow.msg_send(6); // Mówi kasjerowi o dziecku
     kolejka_komunikatow.msg_rcv(7); // Kasjer mówi ile ma zapłacić
-    if(klient.platnosc(double(pamiec[1] / 100))) { // kwota w liczbie groszy
+    if(klient.platnosc(double(pamiec[0] / 100))) { // kwota w liczbie groszy
         kolejka_komunikatow.msg_send(8);
     } else {
-        pamiec[1] = 0; // Płatność nie przeszła
+        pamiec[0] = 0; // Płatność nie przeszła
         kolejka_komunikatow.msg_send(8); // Mówi kasjerowi że nie ma tyle
         klient.status = 0;
         klient.bilet = 0;
         printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %lf\n", klient.id, klient.portfel);
+        memory.shm_detach(pamiec);
         return nullptr; // Klient opuszcza jezioro
     }
     printf("Transakcja udana: %d\n", klient.id);
     // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
     if(klient.bilet == 1) { // dla łodzi 1
         if(klient.vip) {
-            pamiec[2]++; // liczba vipów czekająca na wejście
+            pamiec[5]++; // liczba vipów czekająca na wejście
             kolejka_komunikatow.msg_rcv(9); // komunikat załadunek dla vipów
         } else {
             kolejka_komunikatow.msg_rcv(10); // komunikat załadunek
         }
     } else { // dla łodzi 2
         if(klient.vip) {
-            pamiec[3]++; // liczba vipów czekająca na wejście
+            pamiec[6]++; // liczba vipów czekająca na wejście
             kolejka_komunikatow.msg_rcv(11); // komunikat załadunek dla vipów
         } else {
             kolejka_komunikatow.msg_rcv(12); // komunikat załadunek
         }
     }
-
+    memory.shm_detach(pamiec);
     return nullptr;
 }
 
@@ -142,6 +143,11 @@ int main() {
 
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
+
+    Sem semafor(1234);
+    semafor.sem_attach();
+
+    semafor.sem_op(0, 0); // czekanie na start symulacji
     
     printf("Pasażer działa\n");
 

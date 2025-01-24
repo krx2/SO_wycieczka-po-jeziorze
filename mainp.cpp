@@ -19,8 +19,15 @@ int main() {
     MsgQueue queue(1234);
     queue.msg_create();
 
+    Sem semafor(1234);
+    semafor.sem_create();
+    semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
+    semafor.sem_set_value(1, 1); // semafor 1 - rozpoczynający rejsy
+    semafor.sem_set_value(3, 1); // semafor 3 - pomost dla łodzi 1
+    semafor.sem_set_value(4, 1); // semafor 4 - pomost dla łodzi 2
+
     
-    pid_t pid_policjant = fork();
+    pid_t pid_policjant = fork(); // tworzenie policjanta
     if (pid_policjant < 0) {
         error("fork policjant");
     } else if (pid_policjant == 0) {
@@ -30,7 +37,7 @@ int main() {
     }
     
 
-    pid_t pid_kasjer = fork();
+    pid_t pid_kasjer = fork(); // tworzenie kasjera
     if (pid_kasjer < 0) {
         error("fork kasjer");
     } else if (pid_kasjer == 0) {
@@ -39,7 +46,7 @@ int main() {
         error("execl kasjer");
     }
 
-    pid_t pid_pasazer = fork();
+    pid_t pid_pasazer = fork(); // tworzenie pasażera
     if (pid_pasazer < 0) {
         error("fork pasazer");
     } else if (pid_pasazer == 0) {
@@ -49,7 +56,7 @@ int main() {
     }
 
 
-
+    semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
 
     for(int i = 0; i < 2; i++) {
@@ -75,6 +82,7 @@ int main() {
     memory.shm_detach(shared_mem);
     memory.shm_delete();
     queue.msg_ctl();
+    semafor.sem_remove();
 
     return 0;
 }
