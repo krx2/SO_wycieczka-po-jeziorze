@@ -19,6 +19,8 @@ int main() {
     semafor.sem_op(0, 0); // czekanie na start symulacji
 
     printf("Policjant działa\n");
+    sleep(1);
+    semafor.sem_op(1, -1); // start sternika
 
     
 

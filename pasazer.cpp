@@ -13,7 +13,7 @@ class pasazer {
     int miejsca;
     int status;
     int bilet;
-    double portfel;
+    int portfel;
     pasazer(int p_id) {
         id = p_id;
         wiek = rand() % 65 +15;
@@ -27,7 +27,8 @@ class pasazer {
         }
         status = 1;
         bilet = 0;
-        portfel = double(rand() % 100);
+        portfel = rand() % 100 + 1;
+        portfel *= 100;
         printf("Pasażer o ID %d przyjechał nad jezioro\n", id);
     }
 
@@ -101,14 +102,15 @@ void* pasazerowie(void* arg) {
     pamiec[0] = klient.wiek_dziecka;
     kolejka_komunikatow.msg_send(6); // Mówi kasjerowi o dziecku
     kolejka_komunikatow.msg_rcv(7); // Kasjer mówi ile ma zapłacić
-    if(klient.platnosc(double(pamiec[0] / 100))) { // kwota w liczbie groszy
+    printf("Do zapłacenia: %d\n", pamiec[0]);
+    if(klient.platnosc(pamiec[0])) { // kwota w liczbie groszy
         kolejka_komunikatow.msg_send(8);
     } else {
         pamiec[0] = 0; // Płatność nie przeszła
         kolejka_komunikatow.msg_send(8); // Mówi kasjerowi że nie ma tyle
         klient.status = 0;
         klient.bilet = 0;
-        printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %lf\n", klient.id, klient.portfel);
+        printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %d\n", klient.id, klient.portfel);
         memory.shm_detach(pamiec);
         return nullptr; // Klient opuszcza jezioro
     }
@@ -129,7 +131,7 @@ void* pasazerowie(void* arg) {
             kolejka_komunikatow.msg_rcv(12); // komunikat załadunek
         }
     }
-    memory.shm_detach(pamiec);
+    // memory.shm_detach(pamiec);
     return nullptr;
 }
 
@@ -158,7 +160,6 @@ int main() {
         }
     }
 
-
-    pamiec_dzielona.shm_detach(pamiec);
-
+    // pamiec_dzielona.shm_detach(pamiec);
+    sleep(1);
 }

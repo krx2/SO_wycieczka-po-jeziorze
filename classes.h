@@ -22,6 +22,13 @@ void error(const char* msg) {
 };
 */
 
+union semun {
+    int val;              // Wartość semafora (np. 0 lub 1 dla semafora binarnego).
+    struct semid_ds *buf; // Struktura do pobierania lub ustawiania informacji o semaforze.
+    unsigned short *array; // Tablica wartości semaforów (jeśli mamy zestaw semaforów).
+    struct seminfo *__buf; // Struktura informacyjna, zawiera statystyki o semaforach.
+};
+
 class SharedMem {
     key_t key;
     int size;
@@ -67,7 +74,7 @@ class Sem {
     }
 
     void sem_create(int num_sems = 1) {
-        id = semget(key, num_sems, IPC_CREAT | IPC_EXCL | 0666);
+        id = semget(key, num_sems, IPC_CREAT | 0666);
         if (id == -1) {
             error("semget create error");
         }
@@ -80,7 +87,7 @@ class Sem {
         }
     }
 
-    void sem_op(short sem_num, short sem_op) {
+    void sem_op(short unsigned sem_num, short sem_op) {
         struct sembuf op = {sem_num, sem_op, 0};
         if (semop(id, &op, 1) == -1) {
             error("semop error");
@@ -96,9 +103,9 @@ class Sem {
     }
 
     void sem_set_value(short sem_num, int value) {
-        if (semctl(id, sem_num, SETVAL, value) == -1) {
-            error("semctl SETVAL error");
-        }
+        union semun arg;
+        arg.val = value;
+        if(semctl(id, sem_num, SETVAL, arg) == -1) error("semctl SETVAL error");
     }
 
     void sem_remove() {

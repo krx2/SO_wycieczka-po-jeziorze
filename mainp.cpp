@@ -20,7 +20,7 @@ int main() {
     queue.msg_create();
 
     Sem semafor(1234);
-    semafor.sem_create();
+    semafor.sem_create(100);
     semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
     semafor.sem_set_value(1, 1); // semafor 1 - rozpoczynający rejsy
     semafor.sem_set_value(3, 1); // semafor 3 - pomost dla łodzi 1
