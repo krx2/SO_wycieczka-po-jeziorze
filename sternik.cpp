@@ -6,26 +6,30 @@ using namespace std;
 #define K 10
 #define N1 30
 #define N2 25
+#define T1 1
+#define T2 2
 
 int main() {
     
     pid_t pid_sternik = getpid();
 
+    SharedMem pamiec_dzielona(1234, 1024);
+    pamiec_dzielona.shm_attach();
+    int* pamiec = pamiec_dzielona.shm_get();
+
+    MsgQueue kolejka_komunikatow(1234);
+    kolejka_komunikatow.msg_attach();
+
+    kolejka_komunikatow.msg_rcv(33);
+    pamiec[1] = getpid();
+    kolejka_komunikatow.msg_send(34); // daje swój pid policjantowi
+
     pid_t pid_sternik1 = fork();
     if (pid_sternik1 < 0) {
-        error("fork policjant");
+        error("fork sternik1");
     }
-
-    pid_t pid_sternik2;
-    if(getpid() == pid_sternik) {
-        pid_t pid_sternik1 = fork();
-        if (pid_sternik1 < 0) {
-            error("fork policjant");
-        }
-    }
-
     
-    if(getpid() == pid_sternik1) {
+    if(pid_sternik1 == 0) {
         SharedMem pamiec_dzielona(1234, 1024);
         pamiec_dzielona.shm_attach();
         int* pamiec = pamiec_dzielona.shm_get();
@@ -36,42 +40,54 @@ int main() {
         Sem semafor(1234);
         semafor.sem_attach();
 
+        printf("Sternik1 działa!\n");
+
+        kolejka_komunikatow.msg_rcv(35);
+        pamiec[1] = getpid();
+        kolejka_komunikatow.msg_send(36); // daje swój pid policjantowi
+
         semafor.sem_op(0, 0); // czekanie na start symulacji
 
         semafor.sem_op(1, 0); // czekanie na godzinę Tp
 
-        while(true) {
+        while(semafor.sem_get_value(SIGUSR1) != SIGUSR1) {
 
             
             // Najpierw wyładunek
             printf("Kapitan: Rozpoczynam wyładunek!\n");
             while(pamiec[1] > 0) { // pamiec[1] - liczba osób na łodzi 1
-                if(pamiec[3] > K - 1) { // pamiec[3] - liczba osób na pomoście 1
-                    semafor.sem_op(1, 1); // podniesienie semafora i czekanie na miejsce na pomoście
-                } 
-                pamiec[1]--;
-                pamiec[3]++;
-                kolejka_komunikatow.msg_send(13); // sygnał na opuszczenie pokładu
-                printf("Łódź 1: %d/%d\tPomost 1: %d/%d", pamiec[1], N1, pamiec[3], K);
+                kolejka_komunikatow.msg_send(12); // sygnał na opuszczenie pokładu
+                printf("Łódź 1: %d/%d\tPomost 1: %d/%d\n", pamiec[1], N1, pamiec[3], K);
             }
 
             // Załadunek
             printf("Rozpoczynam załadunek!\n");
             while(pamiec[5] > 0 && pamiec[1] < N1) { // najpierw załadunek vipów, pamiec[5] - liczba czekających vipów
-                pamiec[5]--;
-                pamiec[1]++;
                 kolejka_komunikatow.msg_send(9);
             }
 
             while(pamiec[1] < N1) {
-                pamiec[1]++;
-                kolejka_komunikatow.msg_send(10); // załadunek pasażerów
+                kolejka_komunikatow.msg_send(10); // załadunek pasażerów, proszę wejść na pomost
+                printf("Łódź 1: %d/%d\tPomost 1: %d/%d\n", pamiec[1], N1, pamiec[3], K);
+                if(pamiec[3] > 0) { // jeśli ktoś jest na pomoście to niech wejdzie na statek
+                    kolejka_komunikatow.msg_send(11);
+                }
             }
+
+            //Rejs
+            sleep(T1);
+            raise(SIGKILL);
         }
+        printf("[STERNIK1] Następny rejs się nie odbędzie z powodu SIGUSR1\n");
         pamiec_dzielona.shm_detach(pamiec);
     }
 
-    if(getpid() == pid_sternik2) {
+    pid_t pid_sternik2 = fork();
+    if (pid_sternik2 < 0) {
+        error("fork sternik2");
+    }
+
+    if(pid_sternik2 == 0) {
         SharedMem pamiec_dzielona(1234, 1024);
         pamiec_dzielona.shm_attach();
         int* pamiec = pamiec_dzielona.shm_get();
@@ -79,18 +95,13 @@ int main() {
         MsgQueue kolejka_komunikatow(1234);
         kolejka_komunikatow.msg_attach();
 
-        kolejka_komunikatow.msg_rcv(14); // sygnał godzina Tp
+        kolejka_komunikatow.msg_rcv(37);
+        pamiec[1] = getpid();
+        kolejka_komunikatow.msg_send(38); // daje swój pid policjantowi
 
-        while(true) {
-
-            // Wyładunek
-            // pamiec[1] - liczba osób na łodzi 1, pamiec[3] - liczba osób na pomoście 1
-            while(pamiec[2] > 0 && pamiec[4] < 10) { 
-                pamiec[2]--;
-                pamiec[4]++;
-                kolejka_komunikatow.msg_send(16); // sygnał na opuszczenie pokładu
-            }
-        }
-        pamiec_dzielona.shm_detach(pamiec);
+         printf("Sternik2 działa!\n");
     }
+
+    pause();
+
 }

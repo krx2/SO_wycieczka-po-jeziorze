@@ -8,6 +8,7 @@
 #include <string>
 #include <stdexcept>
 #include <cstring>
+#include <signal.h>
 
 void error(const char* msg) {
     char errmsg[50];

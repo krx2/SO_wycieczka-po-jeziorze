@@ -37,6 +37,9 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
+    pamiec[1] = getpid();
+    kolejka_komunikatow.msg_send(30); // daje swój pid policjantowi
+
     semafor.sem_op(0, 0); // czekanie na start symulacji
 
     printf("Kasjer działa\n");
@@ -51,7 +54,6 @@ int main() {
     int utarg = 0;
 
     while (true) {
-        printf("Następny klient!\n");
         kolejka_komunikatow.msg_send(1); // "Następny klient!"
         kolejka_komunikatow.msg_rcv(2); // Czeka na ID klienta
         klient = pamiec[0];
@@ -70,12 +72,12 @@ int main() {
         dziecko = pamiec[0];
         kwota = oblicz_kwote(bilet, dziecko, vip);
         pamiec[0] = kwota; // w liczbie groszy bo int
-        printf("Do zapłacenia: %d\n", oblicz_kwote(bilet, dziecko, vip));
         kolejka_komunikatow.msg_send(7); // Mówi klientowi ile ma zapłacić
         kolejka_komunikatow.msg_rcv(8); // Czeka na płatność
         if(pamiec[0] != 0) obsluzeni[klient] ++; // Wpisuje klienta do obsłużonych
         utarg += pamiec[0]; // dodaje utarg
         // "Nastepny klient!"
+        if(klient == 2200) break;
 
     }
     

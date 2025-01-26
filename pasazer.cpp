@@ -4,6 +4,10 @@
 
 using namespace std;
 
+#define K 10
+#define N1 30
+#define N2 25
+
 class pasazer {
     public:
     int id;
@@ -69,6 +73,9 @@ void* pasazerowie(void* arg) {
 
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
+
+    Sem semafor(1234);
+    semafor.sem_attach();
     
     kolejka_komunikatow.msg_rcv(1);
     klient.ustaw_do_kasy();
@@ -102,7 +109,6 @@ void* pasazerowie(void* arg) {
     pamiec[0] = klient.wiek_dziecka;
     kolejka_komunikatow.msg_send(6); // Mówi kasjerowi o dziecku
     kolejka_komunikatow.msg_rcv(7); // Kasjer mówi ile ma zapłacić
-    printf("Do zapłacenia: %d\n", pamiec[0]);
     if(klient.platnosc(pamiec[0])) { // kwota w liczbie groszy
         kolejka_komunikatow.msg_send(8);
     } else {
@@ -117,18 +123,67 @@ void* pasazerowie(void* arg) {
     printf("Transakcja udana: %d\n", klient.id);
     // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
     if(klient.bilet == 1) { // dla łodzi 1
-        if(klient.vip) {
-            pamiec[5]++; // liczba vipów czekająca na wejście
+        if(klient.vip) { // vipy wchodzą "bocznym wejściem"
+            pamiec[5]+= klient.miejsca; // liczba vipów czekająca na wejście
             kolejka_komunikatow.msg_rcv(9); // komunikat załadunek dla vipów
+            pamiec[5]-= klient.miejsca; // tyle vipów opuszcza kolejkę
+            pamiec[1]+= klient.miejsca; // tyle vipów wchodzi
         } else {
-            kolejka_komunikatow.msg_rcv(10); // komunikat załadunek
+            while (klient.status != 3) { // zwykli klienci wchodzą przez pomost
+                kolejka_komunikatow.msg_rcv(10); // komunikat załadunek
+                if(pamiec[3] <= K - klient.miejsca) { // jeśli może to wchodzi na pomost
+                    pamiec[3]+= klient.miejsca; // wchodzi na pomost
+                    kolejka_komunikatow.msg_rcv(11); // czeka na wejście na statek
+                    if(pamiec[1] < N1) {
+                        pamiec[1]+= klient.miejsca; // wchodzi na statek jeśli jest miejsce
+                        pamiec[3]-= klient.miejsca; // schodzi z pomostu
+                        klient.status = 3; // status: na statku
+                    } else {
+                        pamiec[3] -= klient.miejsca; // schodzi z pomostu bo nie ma miejsca
+                        klient.status = 2; // wraca na molo
+                    }
+                    
+                } // jak nie ma miejsca na pomoście to czeka na kolejny komunikat
+            }
+        } while (klient.status != 2) { // dopóki nie znajdzie się na molo
+            kolejka_komunikatow.msg_rcv(12); // czeka na wyładunek
+            if(pamiec[3] <= K - klient.miejsca) { // próbuje wejść na pomost
+                pamiec[3]+= klient.miejsca; // wchodzi na pomost
+                pamiec[1]-= klient.miejsca; // schodzi z łodzi
+                pamiec[3]-= klient.miejsca; // schodzi z pomostu
+                klient.status = 2; // jest z powrotem na molo
+            }
         }
     } else { // dla łodzi 2
-        if(klient.vip) {
-            pamiec[6]++; // liczba vipów czekająca na wejście
-            kolejka_komunikatow.msg_rcv(11); // komunikat załadunek dla vipów
+        if(klient.vip) { // vipy wchodzą "bocznym wejściem"
+            pamiec[6]+= klient.miejsca; // liczba vipów czekająca na wejście
+            kolejka_komunikatow.msg_rcv(13); // komunikat załadunek dla vipów
+            pamiec[6]-= klient.miejsca; // tyle vipów opuszcza kolejkę
+            pamiec[2]+= klient.miejsca; // tyle vipów wchodzi
         } else {
-            kolejka_komunikatow.msg_rcv(12); // komunikat załadunek
+            while (klient.status != 3) { // zwykli klienci wchodzą przez pomost
+                kolejka_komunikatow.msg_rcv(14); // komunikat załadunek
+                if(pamiec[4] <= K - klient.miejsca) { // jeśli może to wchodzi na pomost
+                    pamiec[4]+= klient.miejsca; // wchodzi na pomost
+                    kolejka_komunikatow.msg_rcv(15); // czeka na wejście na statek
+                    if(pamiec[2] < N1) {
+                        pamiec[2]+= klient.miejsca; // wchodzi na statek jeśli jest miejsce
+                        pamiec[4]-= klient.miejsca; // schodzi z pomostu
+                        klient.status = 3; // status: na statku
+                    } else {
+                        pamiec[4] -= klient.miejsca; // schodzi z pomostu bo nie ma miejsca
+                        klient.status = 2; // wraca na molo
+                    }
+                } // jak nie ma miejsca na pomoście to czeka na kolejny komunikat
+            }
+        } while (klient.status != 2) { // dopóki nie znajdzie się na molo
+            kolejka_komunikatow.msg_rcv(16); // czeka na wyładunek
+            if(pamiec[4] <= K - klient.miejsca) { // próbuje wejść na pomost
+                pamiec[4]+= klient.miejsca; // wchodzi na pomost
+                pamiec[2]-= klient.miejsca; // schodzi z łodzi
+                pamiec[4]-= klient.miejsca; // schodzi z pomostu
+                klient.status = 2; // jest z powrotem na molo
+            }
         }
     }
     // memory.shm_detach(pamiec);
@@ -148,6 +203,10 @@ int main() {
 
     Sem semafor(1234);
     semafor.sem_attach();
+
+    kolejka_komunikatow.msg_rcv(31);
+    pamiec[1] = getpid();
+    kolejka_komunikatow.msg_send(32); // daje swój pid policjantowi
 
     semafor.sem_op(0, 0); // czekanie na start symulacji
     

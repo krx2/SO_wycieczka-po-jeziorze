@@ -55,11 +55,21 @@ int main() {
         error("execl pasazer");
     }
 
+    /**/
+    pid_t pid_sternik = fork(); // tworzenie sternika
+    if (pid_sternik < 0) {
+        error("fork sternik");
+    } else if (pid_sternik == 0) {
+        printf("Inicjowanie programu sternik\n");
+        execl("./sternik", "./sternik", NULL);
+        error("execl sternik");
+    }
 
-    semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
+
+        semafor.sem_op(0, -1); // czekanie na start symulacji
 
 
-    for(int i = 0; i < 2; i++) {
+    for(int i = 0; i < 3; i++) {
         int status;
         pid_t child_pid = wait(&status);  // Czekaj na dowolny zakonczony proces
 
@@ -76,6 +86,9 @@ int main() {
         } else if(child_pid == pid_pasazer) {
             if(WIFEXITED(status)) 
                 printf("Proces pasazer (%d) zakonczony z kodem %d\n", pid_pasazer, WEXITSTATUS(status));
+        } else if(child_pid == pid_sternik) {
+            if(WIFEXITED(status)) 
+                printf("Proces sternik (%d) zakonczony z kodem %d\n", pid_sternik, WEXITSTATUS(status));
         }
     }
 
