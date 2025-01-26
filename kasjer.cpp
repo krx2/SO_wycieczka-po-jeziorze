@@ -37,10 +37,8 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
-    pamiec[1] = getpid();
+    pamiec[0] = getpid();
     kolejka_komunikatow.msg_send(30); // daje swój pid policjantowi
-
-    semafor.sem_op(0, 0); // czekanie na start symulacji
 
     printf("Kasjer działa\n");
 
@@ -61,7 +59,6 @@ int main() {
             pamiec[0] = 1; // Mówi klientowi, że ma zniżkę
             printf("Kasjer: Gratulacje, klient %d jest VIP-em\n", klient);
         } else {
-            obsluzeni[klient]++;
             pamiec[0] = 0;
         }
         kolejka_komunikatow.msg_send(3);
@@ -76,11 +73,13 @@ int main() {
         kolejka_komunikatow.msg_rcv(8); // Czeka na płatność
         if(pamiec[0] != 0) obsluzeni[klient] ++; // Wpisuje klienta do obsłużonych
         utarg += pamiec[0]; // dodaje utarg
+        obsluzeni[klient]++;
         // "Nastepny klient!"
         if(klient == 2200) break;
 
     }
     
+    pause();
     memory.shm_detach(pamiec);
 
 }

@@ -1,6 +1,12 @@
 #include <iostream>
 #include "classes.h"
-#include <wait.h>
+
+
+#define K 10
+#define N1 30
+#define N2 25
+#define T1 1
+#define T2 2
 
 using namespace std;
 
@@ -16,15 +22,22 @@ int main() {
         shared_mem[i] = 0;
     }
 
+    SharedMem pamiec_pomost(1234, K);
+    pamiec_pomost.shm_create();
+    int* pomost = pamiec_pomost.shm_get();
+
     MsgQueue queue(1234);
     queue.msg_create();
 
     Sem semafor(1234);
     semafor.sem_create(100);
     semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
-    semafor.sem_set_value(1, 1); // semafor 1 - rozpoczynający rejsy
-    semafor.sem_set_value(3, 1); // semafor 3 - pomost dla łodzi 1
-    semafor.sem_set_value(4, 1); // semafor 4 - pomost dla łodzi 2
+    semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1]
+    semafor.sem_set_value(1, 1); // semafor 2 - pamiec[2]
+    semafor.sem_set_value(3, 1); // semafor 3 - pomost dla łodzi 1 pamiec[3]
+    semafor.sem_set_value(4, 1); // semafor 4 - pomost dla łodzi 2 pamiec[4]
+    semafor.sem_set_value(5, 1); // semafor 5 - vip1 pamiec[5]
+    semafor.sem_set_value(6, 1); // semafor 6 - vip2 pamiec[6]
 
     
     pid_t pid_policjant = fork(); // tworzenie policjanta
@@ -55,7 +68,7 @@ int main() {
         error("execl pasazer");
     }
 
-    /**/
+    
     pid_t pid_sternik = fork(); // tworzenie sternika
     if (pid_sternik < 0) {
         error("fork sternik");
@@ -69,7 +82,7 @@ int main() {
         semafor.sem_op(0, -1); // czekanie na start symulacji
 
 
-    for(int i = 0; i < 3; i++) {
+    for(int i = 0; i < 4; i++) {
         int status;
         pid_t child_pid = wait(&status);  // Czekaj na dowolny zakonczony proces
 

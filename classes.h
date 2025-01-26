@@ -5,10 +5,9 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
-#include <string>
 #include <stdexcept>
-#include <cstring>
 #include <signal.h>
+#include <wait.h>
 
 void error(const char* msg) {
     char errmsg[50];

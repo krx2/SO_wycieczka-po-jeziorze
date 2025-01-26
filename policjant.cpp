@@ -12,9 +12,11 @@ void signal_handler(int sig) {
     Sem semafor(1234);
     semafor.sem_attach();
     if(sig == SIGUSR1) {
+        printf("Odebrano sygnał SIGUSR1\n");
         semafor.sem_set_value(SIGUSR1, SIGUSR1);
     } else if(sig == SIGUSR2) {
-        semafor.sem_set_value(SIGUSR2, SIGUSR2); // bez pętli bo kolejność ma znaczenie
+        semafor.sem_set_value(SIGUSR2, SIGUSR2);
+        printf("Odebrano sygnał SIGUSR2\n");
     } else if(sig == SIGCONT) {
         kill(pids[2], sig);
         kill(pids[1], sig);
@@ -61,17 +63,22 @@ int main() {
     kolejka_komunikatow.msg_rcv(38); // czeka na sternik2
     pids[5] = pamiec[0];
 
-    pamiec[0] = 0; // resetuje pamiec0 bo ma wszystkie pidy
+    for(int i = 1; i < 6; i++) {
+        printf("%d\n", pids[i]);
+    }
+    printf("%d\n", getpid());
+
+    pamiec[0] = 0; // resetuje pamiec[0] bo ma wszystkie pidy
 
     printf("Policjant działa\n");
 
 
     sleep(Tp);
-    semafor.sem_op(1, -1); // start sternika
+    kolejka_komunikatow.msg_send(21); // Tp1
+    kolejka_komunikatow.msg_send(22); // Tp2
 
-    usleep(1);
-    kill(pids[4], SIGKILL);
+    sleep(3);
     
-
+    pause();
     memory.shm_detach(pamiec);
 }
