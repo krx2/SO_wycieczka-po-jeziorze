@@ -1,6 +1,5 @@
 #include <iostream>
 #include "classes.h"
-#include <queue>
 
 using namespace std;
 
@@ -30,7 +29,7 @@ class pasazer {
             miejsca = 1;
         }
         status = 1;
-        bilet = 0;
+        bilet = -1;
         portfel = rand() % 100 + 1;
         portfel *= 100;
         //printf("Pasażer o ID %d przyjechał nad jezioro\n", id);
@@ -87,18 +86,18 @@ void* pasazerowie(void* arg) {
     if(pamiec[0] == 1) { // Jak jest VIP to dowolny
         klient.vip = true;
         if(klient.zdecyduj()) {
-            pamiec[0] = 1;
+            pamiec[0] = 0;
         } else {
-            pamiec[0] = 2;
+            pamiec[0] = 1;
         }
     } else { // Jak nie ma VIP to mogą być ograniczenia
         if(klient.wiek > 70 || klient.wiek_dziecka > 0) { // Jak > 70 lat lub z dzieckiem to bilet 2
-            pamiec[0] = 2;
+            pamiec[0] = 1;
         } else { // Inaczej decyduje
             if(klient.zdecyduj()) {
-            pamiec[0] = 1;
+            pamiec[0] = 0;
             } else {
-                pamiec[0] = 2;
+                pamiec[0] = 1;
             }
         }
     }
@@ -115,175 +114,98 @@ void* pasazerowie(void* arg) {
         pamiec[0] = 0; // Płatność nie przeszła
         kolejka_komunikatow.msg_send(8); // Mówi kasjerowi że nie ma tyle
         klient.status = 0;
-        klient.bilet = 0;
+        klient.bilet = -1;
         //printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %d\n", klient.id, klient.portfel);
         memory.shm_detach(pamiec);
         return nullptr; // Klient opuszcza jezioro
     }
     //printf("Transakcja udana: %d\n", klient.id);
     // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
-    if(klient.bilet == 1) { // dla łodzi 1
-        if(klient.vip) { // vipy wchodzą "bocznym wejściem"
 
-            semafor.sem_op(5, -1); // zablokuj dostęp do vipów
-            pamiec[5]+= klient.miejsca; // liczba vipów czekająca na wejście
-            semafor.sem_op(5, 1); // odblokuj dostęp do vipów
+    
+    int nr = klient.bilet;
+    if(klient.vip) { // vipy wchodzą "bocznym wejściem"
 
-            kolejka_komunikatow.msg_rcv(9); // komunikat załadunek dla vipów
+        semafor.sem_op(5+nr, -1); // zablokuj dostęp do vipów
+        pamiec[5+nr]+= klient.miejsca; // liczba vipów czekająca na wejście
+        semafor.sem_op(5+nr, 1); // odblokuj dostęp do vipów
 
-            semafor.sem_op(5, -1); // zablokuj dostęp do vipów
-            pamiec[5]-= klient.miejsca; // tyle vipów opuszcza kolejkę
-            semafor.sem_op(5, 1); // odblokuj dostęp do vipów
+        kolejka_komunikatow.msg_rcv(9+nr); // komunikat załadunek dla vipów
 
-            semafor.sem_op(1, -1); // zablokuj dostęp do łodzi
-            pamiec[1]+= klient.miejsca; // tyle vipów wchodzi
-            semafor.sem_op(1, 1); // odblokuj dostęp do łodzi
-        } else {
-            while (klient.status != 3) { // zwykli klienci wchodzą przez pomost
+        semafor.sem_op(5+nr, -1); // zablokuj dostęp do vipów
+        pamiec[5+nr]-= klient.miejsca; // tyle vipów opuszcza kolejkę
+        semafor.sem_op(5+nr, 1); // odblokuj dostęp do vipów
 
-                kolejka_komunikatow.msg_rcv(10); // komunikat załadunek
+        semafor.sem_op(1+nr, -1); // zablokuj dostęp do łodzi
+        pamiec[1+nr]+= klient.miejsca; // tyle vipów wchodzi
+        semafor.sem_op(1+nr, 1); // odblokuj dostęp do łodzi
+    } else {
+        while (klient.status != 3) { // zwykli klienci wchodzą przez pomost
 
-                semafor.sem_op(3, -1); // zablokuj dostęp do pamięci związanej z pomostem
-                if(pamiec[3] <= K - klient.miejsca) { // jeśli może to wchodzi na pomost
-                    pamiec[3]+= klient.miejsca; // wchodzi na pomost
-                    semafor.sem_op(3, 1); // odblokuj dostęp do pomostu
+            kolejka_komunikatow.msg_rcv(11+nr); // komunikat załadunek
 
-                    kolejka_komunikatow.msg_send(11); // daje znać sternikowi że się udało
+            semafor.sem_op(3+nr, -1); // zablokuj dostęp do pamięci związanej z pomostem
+            if(pamiec[3+nr] <= K - klient.miejsca) { // jeśli może to wchodzi na pomost
+                pamiec[3+nr]+= klient.miejsca; // wchodzi na pomost
+                semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu
 
-                    semafor.sem_op(1, -1); // zablokuj dostęp do łodzi
-                    if(N1 - pamiec[1] >= klient.miejsca) {
-                        pamiec[1]+= klient.miejsca; // wchodzi na statek jeśli jest miejsce
-                        semafor.sem_op(1, 1); // odblokuj dostęp do łodzi
+                kolejka_komunikatow.msg_send(13+nr); // daje znać sternikowi że się udało
 
-                        semafor.sem_op(3, -1); // zablokuj dostęp do pamięci
-                        pamiec[3]-= klient.miejsca; // schodzi z pomostu
-                        semafor.sem_op(3, 1); // odblokuj dostęp do pomostu
+                semafor.sem_op(1+nr, -1); // zablokuj dostęp do łodzi
+                if(N1 - pamiec[1+nr] >= klient.miejsca) {
+                    pamiec[1+nr]+= klient.miejsca; // wchodzi na statek jeśli jest miejsce
+                    semafor.sem_op(1+nr, 1); // odblokuj dostęp do łodzi
 
-                        klient.status = 3; // status: na statku
+                    semafor.sem_op(3+nr, -1); // zablokuj dostęp do pamięci
+                    pamiec[3+nr]-= klient.miejsca; // schodzi z pomostu
+                    semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu
 
-                    } else if(N1 - pamiec[1] < klient.miejsca) { // nie ma miejsca na statku, musi zejść z pomostu
-                        semafor.sem_op(1, 1); // odblokuj dostęp do łodzi
+                    klient.status = 3; // status: na statku
 
-                        semafor.sem_op(3, -1); // zablokuj dostęp do pomostu
-                        pamiec[3] -= klient.miejsca; // schodzi z pomostu bo nie ma miejsca
-                        semafor.sem_op(3, 1); // odblokuj dostęp do pomostu
+                } else if(N1 - pamiec[1+nr] < klient.miejsca) { // nie ma miejsca na statku, musi zejść z pomostu
+                    semafor.sem_op(1+nr, 1); // odblokuj dostęp do łodzi
 
-                        klient.status = 2; // wraca na molo
-                    } else semafor.sem_op(1, 1); // odblokuj dostęp do łodzi
+                    semafor.sem_op(3+nr, -1); // zablokuj dostęp do pomostu
+                    pamiec[3+nr] -= klient.miejsca; // schodzi z pomostu bo nie ma miejsca
+                    semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu
+
+                    klient.status = 2; // wraca na molo
+                } else semafor.sem_op(1+nr, 1); // odblokuj dostęp do łodzi
                     
-                } else semafor.sem_op(3, 1); // odblokuj dostęp do pomostu 
+            } else semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu 
 
-            } // jak nie ma miejsca na pomoście to czeka na kolejny komunikat
+        } // jak nie ma miejsca na pomoście to czeka na kolejny komunikat
 
-        } 
+    } 
         
-        while (klient.status != 2) { // dopóki nie znajdzie się na molo
+    while (klient.status != 2) { // dopóki nie znajdzie się na molo
 
-            kolejka_komunikatow.msg_rcv(12); // czeka na wyładunek
-            printf("Pasażer o ID %d otrzymał sygnał na wyładunek.\n", klient.id);
+        kolejka_komunikatow.msg_rcv(15+nr); // czeka na wyładunek
+        printf("Pasażer o ID %d otrzymał sygnał na wyładunek.\n", klient.id);
 
-            semafor.sem_op(3, -1); // zablokuj dostęp do pomostu
-            if(pamiec[3] <= K - klient.miejsca) { // próbuje wejść na pomost
-                pamiec[3]+= klient.miejsca; // wchodzi na pomost
-                semafor.sem_op(3, 1); // odblokuj dostęp do pomostu
+        semafor.sem_op(3+nr, -1); // zablokuj dostęp do pomostu
+        if(pamiec[3+nr] <= K - klient.miejsca) { // próbuje wejść na pomost
+            pamiec[3+nr]+= klient.miejsca; // wchodzi na pomost
+            semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu
 
-                semafor.sem_op(1, -1); // zablokuj dostęp do łodzi
-                pamiec[1]-= klient.miejsca; // schodzi z łodzi
-                semafor.sem_op(1, 1); // odblokuj dostęp do łodzi
+            semafor.sem_op(1+nr, -1); // zablokuj dostęp do łodzi
+            pamiec[1+nr]-= klient.miejsca; // schodzi z łodzi
+            semafor.sem_op(1+nr, 1); // odblokuj dostęp do łodzi
 
-                kolejka_komunikatow.msg_send(13); // daj znać sternikowi że się udało
+            kolejka_komunikatow.msg_send(13); // daj znać sternikowi że się udało
                 
-                semafor.sem_op(3, -1); // zablokuj dostęp do pomostu
-                pamiec[3]-= klient.miejsca; // schodzi z pomostu
-                semafor.sem_op(3, 1); // odblokuj dostęp do pomostu
+            semafor.sem_op(3+nr, -1); // zablokuj dostęp do pomostu
+            pamiec[3+nr]-= klient.miejsca; // schodzi z pomostu
+            semafor.sem_op(3+nr, 1); // odblokuj dostęp do pomostu
 
-                klient.status = 2; // jest z powrotem na molo
-            } else {
-                semafor.sem_op(3, 1);  // odblokuj dostęp do pomostu
-                kolejka_komunikatow.msg_send(13);
-            }
-        }
-    } else { // dla łodzi 2
-        return nullptr;
-        if(klient.vip) { // vipy wchodzą "bocznym wejściem"
-
-            semafor.sem_op(6, -1); // zablokuj dostęp do vipów
-            pamiec[6]+= klient.miejsca; // liczba vipów czekająca na wejście
-            semafor.sem_op(6, 1); // odblokuj dostęp do vipów
-
-            kolejka_komunikatow.msg_rcv(13); // komunikat załadunek dla vipów
-
-            semafor.sem_op(6, -1); // zablokuj dostęp do vipów
-            pamiec[6]-= klient.miejsca; // tyle vipów opuszcza kolejkę
-            semafor.sem_op(6, 1); // odblokuj dostęp do vipów
-
-            semafor.sem_op(2, -1); // zablokuj dostęp do łodzi
-            pamiec[2]+= klient.miejsca; // tyle vipów wchodzi
-            semafor.sem_op(2, 1); // odblokuj dostęp do łodzi
-
+            klient.status = 2; // jest z powrotem na molo
         } else {
-            while (klient.status != 3) { // zwykli klienci wchodzą przez pomost
-
-                kolejka_komunikatow.msg_rcv(14); // komunikat załadunek
-
-                semafor.sem_op(4, -1); // zablokuj dostęp do pomostu
-                if(pamiec[4] <= K - klient.miejsca) { // jeśli może to wchodzi na pomost
-                    pamiec[4]+= klient.miejsca; // wchodzi na pomost
-                    semafor.sem_op(4, 1); // odblokuj dostęp do pomostu 
-
-                    kolejka_komunikatow.msg_rcv(15); // czeka na wejście na statek
-
-                    semafor.sem_op(2, -1); // zablokuj dostęp do łodzi
-                    if(pamiec[2] < N1) {
-                        pamiec[2]+= klient.miejsca; // wchodzi na statek jeśli jest miejsce
-                        semafor.sem_op(2, 1); // odblokuj dostęp do łodzi
-
-                        semafor.sem_op(4, -1); // zablokuj dostęp do pomostu
-                        pamiec[4]-= klient.miejsca; // schodzi z pomostu
-                        semafor.sem_op(4, 1); // odblokuj dostęp do pomostu 
-
-                        klient.status = 3; // status: na statku
-
-                    } else if(pamiec[2] >= N1) {
-                        semafor.sem_op(2, 1); // odblokuj dostęp do łodzi
-
-                        semafor.sem_op(4, -1); // zablokuj dostęp do pomostu
-                        pamiec[4] -= klient.miejsca; // schodzi z pomostu bo nie ma miejsca
-                        semafor.sem_op(4, 1); // odblokuj dostęp do pomostu
-
-                        klient.status = 2; // wraca na molo
-
-                    } else semafor.sem_op(2, 1); // odblokuj dostęp do łodzi
-
-                } else semafor.sem_op(4, 1); // odblokuj dostęp do pomostu  
-            } // jak nie ma miejsca na pomoście to czeka na kolejny komunikat
-
-        } while (klient.status != 2) { // dopóki nie znajdzie się na molo
-
-            kolejka_komunikatow.msg_rcv(16); // czeka na wyładunek
-
-            semafor.sem_op(4, -1); // zablokuj dostęp do pomostu
-            if(pamiec[4] <= K - klient.miejsca) { // próbuje wejść na pomost
-                pamiec[4]+= klient.miejsca; // wchodzi na pomost
-                semafor.sem_op(4, 1); // odblokuj dostęp do pomostu
-
-                semafor.sem_op(2, -1); // zablokuj dostęp do łodzi
-                pamiec[2]-= klient.miejsca; // schodzi z łodzi
-                semafor.sem_op(2, 1); // odblokuj dostęp do łodzi
-
-                semafor.sem_op(4, -1); // zablokuj dostęp do pomostu
-                pamiec[4]-= klient.miejsca; // schodzi z pomostu
-                semafor.sem_op(4, 1); // odblokuj dostęp do pomostu
-
-                klient.status = 2; // jest z powrotem na molo
-
-            } else semafor.sem_op(4, 1); // odblokuj dostęp do pomostu
+            semafor.sem_op(3+nr, 1);  // odblokuj dostęp do pomostu
+                kolejka_komunikatow.msg_send(17+nr);
         }
     }
-    // memory.shm_detach(pamiec);
-    return nullptr;
+    
 }
-
 
 int main() {
 
@@ -298,11 +220,7 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
-    kolejka_komunikatow.msg_rcv(31);
-    pamiec[0] = getpid();
-    kolejka_komunikatow.msg_send(32); // daje swój pid policjantowi
-
-    semafor.sem_op(0, 0); // czekanie na start symulacji
+    semafor.sem_op(0, -1); // czekanie na start symulacji
     
     printf("Pasażer działa\n");
 

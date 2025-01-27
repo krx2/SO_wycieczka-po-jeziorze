@@ -28,11 +28,6 @@ void signal_handler(int sig) {
 
 int main() {
 
-    struct sigaction sa;
-    sa.sa_handler = signal_handler; // Funkcja obsługi sygnałów
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-
     SharedMem memory(1234, 1024);
     memory.shm_attach();
     int* pamiec = memory.shm_get();
@@ -43,35 +38,9 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
-    semafor.sem_op(0, 0); // start symulacji po zainicjowaniu procesów
+    semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
     printf("[POLICJANT] start\n");
-
-
-    kolejka_komunikatow.msg_rcv(30); // czekaj na przekazanie pidu kasjera
-    pids[1] = pamiec[0];
-    kolejka_komunikatow.msg_send(31); // daje znać procesowi pasażer
-    kolejka_komunikatow.msg_rcv(32); // czekanie na przekazanie pidu pasażera
-    pids[2] = pamiec[0];
-    kolejka_komunikatow.msg_send(33); // daje znać sternikowi
-    kolejka_komunikatow.msg_rcv(34); // czekanie na przekazanie pidu sternika
-    pids[3] = pamiec[0];
-    kolejka_komunikatow.msg_send(35); // do sternik1
-    kolejka_komunikatow.msg_rcv(36); // czeka na sternik1
-    pids[4] = pamiec[0];
-    kolejka_komunikatow.msg_send(37); // do sternik2
-    kolejka_komunikatow.msg_rcv(38); // czeka na sternik2
-    pids[5] = pamiec[0];
-
-    for(int i = 1; i < 6; i++) {
-        printf("%d\n", pids[i]);
-    }
-    printf("%d\n", getpid());
-
-    pamiec[0] = 0; // resetuje pamiec[0] bo ma wszystkie pidy
-
-    printf("Policjant działa\n");
-
 
     sleep(Tp);
     kolejka_komunikatow.msg_send(21); // Tp1

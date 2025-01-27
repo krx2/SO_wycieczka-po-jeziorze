@@ -25,6 +25,10 @@ int oblicz_kwote(int bilet, int dziecko, bool vip) {
     return kwota * 100;
 }
 
+void signal_handler(int sig) {
+    raise(SIGINT);
+}
+
 int main() {
 
     SharedMem memory(1234, 1024);
@@ -37,8 +41,9 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
-    pamiec[0] = getpid();
-    kolejka_komunikatow.msg_send(30); // daje swój pid policjantowi
+    printf("[KASJER]\tgotowy\n");
+
+    semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
     printf("Kasjer działa\n");
 
@@ -50,6 +55,8 @@ int main() {
     int kwota;
 
     int utarg = 0;
+
+    signal(SIGINT, signal_handler);
 
     while (true) {
         kolejka_komunikatow.msg_send(1); // "Następny klient!"

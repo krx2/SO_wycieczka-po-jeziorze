@@ -10,10 +10,20 @@
 
 using namespace std;
 
+
+void signal_handler(int sig) {
+    killpg(getpgrp(), SIGINT);
+}
+
+
 int main() {
 
+    signal(SIGINT, signal_handler);
+
     pid_t mainp = getpid();
-    
+
+    setpgid(0, 0);
+
     SharedMem memory(1234, 1024);
     memory.shm_create();
     int* shared_mem = memory.shm_get();
@@ -28,6 +38,7 @@ int main() {
 
     MsgQueue queue(1234);
     queue.msg_create();
+    
 
     Sem semafor(1234);
     semafor.sem_create(100);
@@ -39,7 +50,8 @@ int main() {
     semafor.sem_set_value(5, 1); // semafor 5 - vip1 pamiec[5]
     semafor.sem_set_value(6, 1); // semafor 6 - vip2 pamiec[6]
 
-    
+    semafor.sem_set_value(0, 4);
+
     pid_t pid_policjant = fork(); // tworzenie policjanta
     if (pid_policjant < 0) {
         error("fork policjant");
@@ -77,9 +89,6 @@ int main() {
         execl("./sternik", "./sternik", NULL);
         error("execl sternik");
     }
-
-
-        semafor.sem_op(0, -1); // czekanie na start symulacji
 
 
     for(int i = 0; i < 4; i++) {
