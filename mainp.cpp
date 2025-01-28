@@ -43,12 +43,18 @@ int main() {
     Sem semafor(1234);
     semafor.sem_create(100);
     semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
-    semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1]
-    semafor.sem_set_value(1, 1); // semafor 2 - pamiec[2]
-    semafor.sem_set_value(3, 1); // semafor 3 - pomost dla łodzi 1 pamiec[3]
-    semafor.sem_set_value(4, 1); // semafor 4 - pomost dla łodzi 2 pamiec[4]
-    semafor.sem_set_value(5, 1); // semafor 5 - vip1 pamiec[5]
-    semafor.sem_set_value(6, 1); // semafor 6 - vip2 pamiec[6]
+    semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1] obecni pasażerowie
+    semafor.sem_set_value(1, 1); // semafor 2 - pamiec[2] obecni pasażerowie
+    semafor.sem_set_value(3, K); // semafor 3 - pomost dla łodzi 1
+    semafor.sem_set_value(4, K); // semafor 4 - pomost dla łodzi 2
+    semafor.sem_set_value(5, 0); // semafor 5 - vip1 
+    semafor.sem_set_value(6, 0); // semafor 6 - vip2 
+    semafor.sem_set_value(7, 0); // semafor 7 - wyładunek1 
+    semafor.sem_set_value(8, 0); // semafor 8 - wyładunek2
+    semafor.sem_set_value(9, 0); // semafor 9 - załadunek1 
+    semafor.sem_set_value(10, 0); // semafor 10 - załadunek2
+    semafor.sem_set_value(11, 0); // semafor kierunek pomostu1
+    semafor.sem_set_value(12, 0); // semafor kierunek pomostu2
 
     semafor.sem_set_value(0, 4);
 
