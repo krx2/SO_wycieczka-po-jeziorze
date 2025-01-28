@@ -30,11 +30,10 @@ union semun {
 };
 
 class SharedMem {
+    public:
     key_t key;
     int size;
     int id;
-    
-    public:
     SharedMem(key_t memory_key, int memory_size) {
         key = memory_key;
         size = memory_size;
@@ -65,10 +64,9 @@ class SharedMem {
 };
 
 class Sem {
+    public:
     key_t key;
     int id;
-    
-    public:
     Sem(key_t sem_key) {
         key = sem_key;
     }
@@ -116,10 +114,9 @@ class Sem {
 };
 
 class MsgQueue {
+    public:
     key_t key;
     int id;
-
-    public:
     MsgQueue(key_t msg_key) {
         key = msg_key;
     }

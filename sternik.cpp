@@ -16,27 +16,38 @@ using namespace std;
 #define POMOST_SEM 3
 
 
-volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
+volatile sig_atomic_t stop_requested1 = 0; // Flaga do zatrzymania pętli
+volatile sig_atomic_t stop_requested2 = 0; // Flaga do zatrzymania pętli
 
 pid_t pid_sternik1;
 pid_t pid_sternik2;
 
+int* pamiec;
+
 void signal_handler(int sig) {
-    if (sig == SIGUSR1 || sig == SIGUSR2) {
-        stop_requested = 1; // Ustawienie flagi końca działania
+    if (sig == SIGUSR1) {
+        stop_requested1 = 1; // Ustawienie flagi końca działania
+    } else if (sig == SIGUSR2) {
+        stop_requested2 = 1; // Ustawienie flagi końca działania
     } else {
-        kill(pid_sternik1, SIGINT);
-        kill(pid_sternik2, SIGINT);
-        stop_requested = 1; // Ustawienie flagi końca działania
+        if (pamiec != nullptr) {
+        if (shmdt(pamiec) == -1) {
+            perror("shmdt error sternik");
+        } else {
+            printf("Process %d: Detached from shared memory.\n", getpid());
+        }
     }
-    stop_requested = 1; // Ustawienie flagi końca działania
+    exit(EXIT_SUCCESS);
+    }
+    stop_requested1 = 1; // Ustawienie flagi końca działania
+    stop_requested2 = 1;
 }
 
 void sternik(int nr) {
     // Proces potomny: sternik
         SharedMem pamiec_dzielona(1234, 1024);
         pamiec_dzielona.shm_attach();
-        int* pamiec = pamiec_dzielona.shm_get();
+        pamiec = pamiec_dzielona.shm_get();
 
         MsgQueue kolejka_komunikatow(1234);
         kolejka_komunikatow.msg_attach();
@@ -45,10 +56,18 @@ void sternik(int nr) {
         semafor.sem_attach();
 
         int pojemnosc;
+        int czas;
 
         if(nr == 0) {
             pojemnosc = N1;
-        } else pojemnosc = N2;
+            czas = T1;
+        } else {
+            pojemnosc = N2;
+            czas = T2;
+        }
+
+        int pasazerowie = 0;
+        
 
         printf("[STERNIK%d]: działa!\n", 1+nr);
 
@@ -58,10 +77,17 @@ void sternik(int nr) {
 
         pamiec[1+nr] = 0; // ile jest osób na łodzi
 
-        while(!stop_requested) {
+        while(!stop_requested1) {
             printf("[STERNIK%d]: Rozpoczynam wyładunek.\n", nr+1);
 
-            while (pamiec[1 + nr] > 0) {
+            semafor.sem_set_value(DIRECTION_SEM+nr, 2);
+
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+            while (pasazerowie > 0) {
+
                 semafor.sem_op(UNLOADING_SEM+nr, 1);
                 sleep(1);
 
@@ -69,44 +95,71 @@ void sternik(int nr) {
                     semafor.sem_set_value(UNLOADING_SEM+nr, 0);
                     break;
                 }
-                printf("[STERNIK%d]: Wyładunek: %d pasażerów na pokładzie.\n", nr+1, pamiec[1 + nr]);
+
+                semafor.sem_op(1+nr, -1); // blokuje pamięć
+                pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+                semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+                printf("[STERNIK%d]: Wyładunek: %d pasażerów na pokładzie.\n", nr+1, pasazerowie);
             }
 
             semafor.sem_set_value(DIRECTION_SEM+nr, 1); // Pomost do załadunku
 
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
             printf("[STERNIK%d]: Rozpoczynam załadunek VIPów.\n", nr+1);
-            while (pamiec[1 + nr] < pojemnosc) {
+            while (pasazerowie < pojemnosc) {
                 semafor.sem_op(VIP_QUEUE_SEM+nr, 1);
                 sleep(1);
                 if(semafor.sem_get_value(VIP_QUEUE_SEM+nr) > 2){
                     semafor.sem_set_value(VIP_QUEUE_SEM+nr, 0);
                     break;
                 }
-            }
-            printf("[STERNIK%d]: Załadunek VIP: %d pasażerów na pokładzie.\n", nr+1, pamiec[1 + nr]);
 
-        while (pamiec[1 + nr] < pojemnosc) {
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+            }
+
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+            printf("[STERNIK%d]: Załadunek VIP: %d pasażerów na pokładzie.\n", nr+1, pasazerowie);
+
+            while (pasazerowie < pojemnosc) {
                 semafor.sem_op(LOADING_SEM+nr, 1);
                 sleep(1);
-                if(K - semafor.sem_get_value(POMOST_SEM+nr) + pamiec[1+nr] >= pojemnosc) {
+                if(K - semafor.sem_get_value(POMOST_SEM+nr) + pasazerowie >= pojemnosc) {
                     semafor.sem_set_value(DIRECTION_SEM+nr, 2); // nie wpuszczamy więcej na pomost, pomost do wyładunku
                 }
 
                 if(semafor.sem_get_value(LOADING_SEM+nr) > 2) {
                     semafor.sem_set_value(LOADING_SEM+nr, 0);
                     break;
-                } else printf("[STERNIK%d]: Załadunek: %d pasażerów na pokładzie.\n", nr+1, pamiec[1 + nr]);
+                } else printf("[STERNIK%d]: Załadunek: %d pasażerów na pokładzie.\n", nr+1, pasazerowie);
+
+                semafor.sem_op(1+nr, -1); // blokuje pamięć
+                pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+                semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
             }
 
-        if(pamiec[1+nr] == 0) {
-            printf("[STERNIK%d]: Brak pasażerów, kończę działanie.\n", nr+1);
-            exit(0);
-        }
-        printf("[STERNIK%d]: Wyruszam w rejs. Liczba pasażerów: %d\n", nr+1, pamiec[1+nr]);
-        sleep(3);
+
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pasazerowie = pamiec[1+nr]; // update liczby pasazerow
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+            if(pasazerowie == 0) {
+                printf("[STERNIK%d]: Brak pasażerów, kończę działanie.\n", nr+1);
+                exit(0);
+            }
+            printf("[STERNIK%d]: Wyruszam w rejs. Liczba pasażerów: %d\n", nr+1, pasazerowie);
 
             // Rejs
-            sleep(T1);
+            sleep(czas);
         }
         printf("[STERNIK%d]: Następny rejs się nie odbędzie z powodu SIGUSR1\n", nr+1);
         pamiec_dzielona.shm_detach(pamiec);
@@ -114,12 +167,11 @@ void sternik(int nr) {
 }
 
 int main() {
+
+    signal(SIGUSR1, signal_handler);
+    signal(SIGUSR2, signal_handler);
     
     pid_t pid_sternik = getpid();
-
-    SharedMem pamiec_dzielona(1234, 1024);
-    pamiec_dzielona.shm_attach();
-    int* pamiec = pamiec_dzielona.shm_get();
 
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
@@ -129,14 +181,14 @@ int main() {
 
     semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
-    pid_t pid_sternik1 = fork();
+    pid_sternik1 = fork();
     if (pid_sternik1 < 0) {
         error("fork sternik1");
     } else if (pid_sternik1 == 0) {
         sternik(0);
     }
 
-    pid_t pid_sternik2 = fork();
+    pid_sternik2 = fork();
     if (pid_sternik2 < 0) {
         error("fork sternik2");
     } else if (pid_sternik2 == 0) {
@@ -145,5 +197,4 @@ int main() {
 
     // Proces macierzysty czeka na zakończenie potomków lub dalsze sygnały
     pause();
-    return 0;
 }

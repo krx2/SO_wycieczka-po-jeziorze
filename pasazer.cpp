@@ -7,11 +7,13 @@ using namespace std;
 #define N1 30
 #define N2 25
 
-#define POMOST_SEM 3
 #define VIP_QUEUE_SEM 5
 #define LOADING_SEM 9
 #define UNLOADING_SEM 7
 #define DIRECTION_SEM 11
+#define POMOST_SEM 3
+
+#define MAX_PASSENGERS 100
 
 class pasazer {
     public:
@@ -81,6 +83,10 @@ void* pasazerowie(void* arg) {
 
     Sem semafor(1234);
     semafor.sem_attach();
+
+    if(semafor.sem_get_value(13) == 0) { // niech się stworzy następny
+        semafor.sem_op(13, 1);
+    }
     
     kolejka_komunikatow.msg_rcv(1);
     klient.ustaw_do_kasy();
@@ -91,7 +97,7 @@ void* pasazerowie(void* arg) {
     // Klient wybiera bilet
     if(pamiec[0] == 1) { // Jak jest VIP to dowolny
         klient.vip = true;
-        if(klient.zdecyduj()) {
+        if(klient.zdecyduj()==false) {
             klient.bilet = 0;
         } else {
             klient.bilet = 1;
@@ -100,7 +106,7 @@ void* pasazerowie(void* arg) {
         if(klient.wiek > 70 || klient.wiek_dziecka > 0) { // Jak > 70 lat lub z dzieckiem to bilet 2
             klient.bilet = 1;
         } else { // Inaczej decyduje
-            if(klient.zdecyduj()) {
+            if(klient.zdecyduj()==false) {
             klient.bilet = 0;
             } else {
                 klient.bilet = 1;
@@ -125,7 +131,7 @@ void* pasazerowie(void* arg) {
         memory.shm_detach(pamiec);
         return nullptr; // Klient opuszcza jezioro
     }
-    printf("[PASAŻER] Transakcja udana. ID: %d Bilet: %d\n", klient.id, klient.bilet);
+    printf("[PASAŻER]: Transakcja udana. ID: %d Bilet: %d\n", klient.id, klient.bilet);
     // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
 
     
@@ -142,14 +148,15 @@ void* pasazerowie(void* arg) {
         if(pamiec[1+nr] + klient.miejsca <= pojemnosc_lodzi) {
         pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
         } else {
-            printf("[PASAŻER] VIP nie może wejść na łódź %d\n", nr);
+            printf("[PASAŻER]: VIP nie może wejść na łódź %d\n", 1+nr);
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+            memory.shm_detach(pamiec);
             return nullptr;
         }
         semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
     } else { // jeśli pomost do wejścia to może wejść
         while(semafor.sem_get_value(DIRECTION_SEM+nr) != 1) { // czeka aż będzie można wchodzić na pomost
-            sleep(1);
+            continue;
         }
         semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
 
@@ -158,65 +165,63 @@ void* pasazerowie(void* arg) {
 
         semafor.sem_op(1+nr, -1); // blokuje pamięć
         if(pamiec[1+nr] + klient.miejsca <= pojemnosc_lodzi) {
-        pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
-        semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+            pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
-        printf("[PASAŻER] %d Wszedł na łódź %d\n", klient.id, nr+1);
+            printf("[PASAŻER]: %d Wszedł na łódź %d\n", klient.id, nr+1);
 
         } else {
-            printf("[PASAŻER] %d nie może wejść na łódź %d\n", klient.id, nr+1);
+            printf("[PASAŻER]: %d nie może wejść na łódź %d\n", klient.id, nr+1);
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+            semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
+            memory.shm_detach(pamiec);
             return nullptr;
         }
         
         semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
 
-        
-
-        semafor.sem_op(UNLOADING_SEM+nr, -1*klient.miejsca); // schodzi z łodzi po rejsie
-
-        while(semafor.sem_get_value(DIRECTION_SEM+nr) != 2) { // czeka aż będzie można wchodzić na pomost
-            sleep(1);
-        }
-
-        semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
-        
-        semafor.sem_op(1+nr, -1); // blokuje pamięć
-        pamiec[1+nr] -= klient.miejsca; // wchodzi na łódź
-        semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
-
-        semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
-
-
     }
 
+    semafor.sem_op(UNLOADING_SEM+nr, -1*klient.miejsca); // schodzi z łodzi po rejsie
+
+    semafor.sem_op(1+nr, -1); // blokuje pamięć
+    pamiec[1+nr] -= klient.miejsca; // schodzi z łodzi
+    semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
+    while(semafor.sem_get_value(DIRECTION_SEM+nr) != 2) { // czeka aż będzie można wchodzić na pomost
+        continue;
+    }
+
+    printf("[PASAŻER]: %d wchodzi na pomost statku %d\n", klient.id, nr+1);
+
+    semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
+        
+    
+
+    semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
+
+    printf("[PASAŻER]: %d zszedł ze statku %d\n", klient.id, nr+1);
+
+    memory.shm_detach(pamiec);
     return nullptr;
 }
 
 int main() {
-
-    
-    SharedMem pamiec_dzielona(1234, 1024);
-    pamiec_dzielona.shm_attach();
-    int* pamiec = pamiec_dzielona.shm_get();
-
-    MsgQueue kolejka_komunikatow(1234);
-    kolejka_komunikatow.msg_attach();
 
     Sem semafor(1234);
     semafor.sem_attach();
 
     semafor.sem_op(0, -1); // czekanie na start symulacji
     
-    printf("[PASAŻER] działa\n");
+    printf("[PASAŻER]: działa\n");
 
-    for(int i = 1; i < 100; i++) {
+    for(int i = 1; i < MAX_PASSENGERS; i++) {
         pthread_t thread;
         if (pthread_create(&thread, NULL, pasazerowie, &i) != 0) {
-            error("[PASAŻER] Błąd tworzenia wątku");
+            error("[PASAŻER]: Błąd tworzenia wątku");
         }
+        if(i != MAX_PASSENGERS - 1) semafor.sem_op(13, -1);
     }
 
-    // pamiec_dzielona.shm_detach(pamiec);
     pause();
 }

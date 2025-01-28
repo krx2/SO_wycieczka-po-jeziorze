@@ -25,15 +25,27 @@ int oblicz_kwote(int bilet, int dziecko, bool vip) {
     return kwota * 100;
 }
 
+volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
+
+int* pamiec = nullptr;
+
 void signal_handler(int sig) {
-    raise(SIGINT);
+    if (pamiec != nullptr) {
+        if (shmdt(pamiec) == -1) {
+            perror("shmdt error");
+        } else {
+            printf("Process %d: Detached from shared memory.\n", getpid());
+        }
+    }
+    exit(EXIT_SUCCESS);
 }
+
 
 int main() {
 
     SharedMem memory(1234, 1024);
     memory.shm_attach();
-    int* pamiec = memory.shm_get();
+    pamiec = memory.shm_get();
 
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
@@ -58,7 +70,7 @@ int main() {
 
     signal(SIGINT, signal_handler);
 
-    while (true) {
+    while (!stop_requested) {
         kolejka_komunikatow.msg_send(1); // "Następny klient!"
         kolejka_komunikatow.msg_rcv(2); // Czeka na ID klienta
         klient = pamiec[0];
@@ -87,6 +99,6 @@ int main() {
     }
     
     pause();
-    memory.shm_detach(pamiec);
+    
 
 }

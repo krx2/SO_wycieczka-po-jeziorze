@@ -10,10 +10,35 @@
 
 using namespace std;
 
+int* shared_mem;
+
+int shmid;
+int semid;
+int msgid;
 
 void signal_handler(int sig) {
-    killpg(getpgrp(), SIGINT);
+    // Bezpieczne odłączenie pamięci współdzielonej
+    if (shared_mem != NULL) {
+        if (shmdt(shared_mem) == -1) perror("shmdt error");
+    }
+
+    // Usunięcie segmentu pamięci współdzielonej
+    if (shmctl(shmid, IPC_RMID, NULL) == -1) perror("shmctl error");
+
+    // Usunięcie kolejki komunikatów
+    if (msgctl(msgid, IPC_RMID, NULL) == -1) perror("msgctl error");
+
+    // Usunięcie zestawu semaforów
+    if (semctl(semid, 0, IPC_RMID) == -1) perror("semctl IPC_RMID error");
+
+    // Zabijanie grupy procesów
+    if (killpg(getpgrp(), SIGINT) == -1) perror("killpg error");
+
+    // Wyjście z programu
+    exit(EXIT_SUCCESS);
 }
+
+
 
 
 int main() {
@@ -27,6 +52,7 @@ int main() {
     SharedMem memory(1234, 1024);
     memory.shm_create();
     int* shared_mem = memory.shm_get();
+    shmid = memory.id;
 
     for(int i = 0; i < 1024; i++) {
         shared_mem[i] = 0;
@@ -44,7 +70,7 @@ int main() {
     semafor.sem_create(100);
     semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
     semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1] obecni pasażerowie
-    semafor.sem_set_value(1, 1); // semafor 2 - pamiec[2] obecni pasażerowie
+    semafor.sem_set_value(2, 1); // semafor 2 - pamiec[2] obecni pasażerowie
     semafor.sem_set_value(3, K); // semafor 3 - pomost dla łodzi 1
     semafor.sem_set_value(4, K); // semafor 4 - pomost dla łodzi 2
     semafor.sem_set_value(5, 0); // semafor 5 - vip1 
@@ -55,6 +81,7 @@ int main() {
     semafor.sem_set_value(10, 0); // semafor 10 - załadunek2
     semafor.sem_set_value(11, 0); // semafor kierunek pomostu1
     semafor.sem_set_value(12, 0); // semafor kierunek pomostu2
+    semafor.sem_set_value(13, 0); // semafor tworzenie pasażerów
 
     semafor.sem_set_value(0, 4);
 
