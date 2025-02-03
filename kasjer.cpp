@@ -33,8 +33,6 @@ void signal_handler(int sig) {
     if (pamiec != nullptr) {
         if (shmdt(pamiec) == -1) {
             perror("shmdt error");
-        } else {
-            printf("Process %d: Detached from shared memory.\n", getpid());
         }
     }
     exit(EXIT_SUCCESS);
@@ -76,7 +74,7 @@ int main() {
         klient = pamiec[0];
         if(obsluzeni[klient] > 0) {
             pamiec[0] = 1; // Mówi klientowi, że ma zniżkę
-            printf("Kasjer: Gratulacje, klient %d jest VIP-em\n", klient);
+            //printf("Kasjer: Gratulacje, klient %d jest VIP-em\n", klient);
         } else {
             pamiec[0] = 0;
         }

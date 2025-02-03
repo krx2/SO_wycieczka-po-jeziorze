@@ -13,7 +13,9 @@ using namespace std;
 #define DIRECTION_SEM 11
 #define POMOST_SEM 3
 
-#define MAX_PASSENGERS 100
+#define MAX_PASSENGERS 500
+
+volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
 
 class pasazer {
     public:
@@ -70,6 +72,9 @@ class pasazer {
 
 };
 
+int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient);
+int bilety(MsgQueue& kolejka_komunikatow, int* pamiec, pasazer& klient);
+
 void* pasazerowie(void* arg) {
     int id = *static_cast<int*>(arg);
     pasazer klient(id);
@@ -88,9 +93,32 @@ void* pasazerowie(void* arg) {
         semafor.sem_op(13, 1);
     }
     
+    
+    // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
+
+    while (!stop_requested) {
+        if(bilety(kolejka_komunikatow, pamiec, klient) == -1) {
+            //printf("\033[32m[PASAŻER]\033[0m: Transakcja nieudana. Klient opuszcza jezioro. ID: %d\n", klient.id);
+            break;
+        }
+        bool nieuzyty_bilet = true;
+        while (nieuzyty_bilet) {
+            if(molo_pomost_statek(semafor, pamiec, klient) == 0) {
+                nieuzyty_bilet = false;
+            }
+        }
+    }
+    
+    
+
+    memory.shm_detach(pamiec);
+    return nullptr;
+}
+
+int bilety(MsgQueue& kolejka_komunikatow, int* pamiec, pasazer& klient) {
     kolejka_komunikatow.msg_rcv(1);
     klient.ustaw_do_kasy();
-    pamiec[0] = id;
+    pamiec[0] = klient.id;
     kolejka_komunikatow.msg_send(2);
     // Klient czeka na informacje o zniżkach
     kolejka_komunikatow.msg_rcv(3);
@@ -128,13 +156,13 @@ void* pasazerowie(void* arg) {
         klient.status = 0;
         klient.bilet = -1;
         //printf("Pasażer o ID: %d opuszcza jezioro z powodu braku pieniędzy: %d\n", klient.id, klient.portfel);
-        memory.shm_detach(pamiec);
-        return nullptr; // Klient opuszcza jezioro
+        return -1; // Klient opuszcza jezioro
     }
-    printf("[PASAŻER]: Transakcja udana. ID: %d Bilet: %d\n", klient.id, klient.bilet);
-    // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
+    //printf("\033[32m[PASAŻER]\033[0m: Transakcja udana. ID: %d Bilet: %d\n", klient.id, klient.bilet);
+    return 0;
+}
 
-    
+int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
     int nr = klient.bilet;
     int pojemnosc_lodzi;
     if(nr == 0) {
@@ -148,10 +176,9 @@ void* pasazerowie(void* arg) {
         if(pamiec[1+nr] + klient.miejsca <= pojemnosc_lodzi) {
         pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
         } else {
-            printf("[PASAŻER]: VIP nie może wejść na łódź %d\n", 1+nr);
+            //printf("\033[32m[PASAŻER]\033[0m: VIP nie może wejść na łódź %d\n", 1+nr);
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
-            memory.shm_detach(pamiec);
-            return nullptr;
+            return 1;
         }
         semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
     } else { // jeśli pomost do wejścia to może wejść
@@ -168,14 +195,13 @@ void* pasazerowie(void* arg) {
             pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
-            printf("[PASAŻER]: %d Wszedł na łódź %d\n", klient.id, nr+1);
+            printf("\033[32m[PASAŻER]\033[0m: %d Wszedł na łódź %d\n", klient.id, nr+1);
 
         } else {
-            printf("[PASAŻER]: %d nie może wejść na łódź %d\n", klient.id, nr+1);
+            //printf("\033[32m[PASAŻER]\033[0m: %d nie może wejść na łódź %d\n", klient.id, nr+1);
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
             semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
-            memory.shm_detach(pamiec);
-            return nullptr;
+            return 1;
         }
         
         semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
@@ -192,18 +218,15 @@ void* pasazerowie(void* arg) {
         continue;
     }
 
-    printf("[PASAŻER]: %d wchodzi na pomost statku %d\n", klient.id, nr+1);
+    printf("\033[32m[PASAŻER]\033[0m: %d wchodzi na pomost statku %d\n", klient.id, nr+1);
 
     semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
-        
-    
 
     semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
 
-    printf("[PASAŻER]: %d zszedł ze statku %d\n", klient.id, nr+1);
+    printf("\033[32m[PASAŻER]\033[0m: %d zszedł ze statku %d\n", klient.id, nr+1);
 
-    memory.shm_detach(pamiec);
-    return nullptr;
+    return 0;
 }
 
 int main() {
@@ -213,12 +236,12 @@ int main() {
 
     semafor.sem_op(0, -1); // czekanie na start symulacji
     
-    printf("[PASAŻER]: działa\n");
+    printf("\033[32m[PASAŻER]\033[0m: działa\n");
 
     for(int i = 1; i < MAX_PASSENGERS; i++) {
         pthread_t thread;
         if (pthread_create(&thread, NULL, pasazerowie, &i) != 0) {
-            error("[PASAŻER]: Błąd tworzenia wątku");
+            error("\033[32m[PASAŻER]\033[0m: Błąd tworzenia wątku");
         }
         if(i != MAX_PASSENGERS - 1) semafor.sem_op(13, -1);
     }

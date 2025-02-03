@@ -34,6 +34,8 @@ void signal_handler(int sig) {
     // Zabijanie grupy procesów
     if (killpg(getpgrp(), SIGINT) == -1) perror("killpg error");
 
+    printf("[MAINP]: Pomyślnie zakończono działanie programu!\n");
+
     // Wyjście z programu
     exit(EXIT_SUCCESS);
 }
@@ -58,17 +60,15 @@ int main() {
         shared_mem[i] = 0;
     }
 
-    SharedMem pamiec_pomost(1234, K);
-    pamiec_pomost.shm_create();
-    int* pomost = pamiec_pomost.shm_get();
-
     MsgQueue queue(1234);
     queue.msg_create();
+    msgid = queue.id;
     
 
     Sem semafor(1234);
     semafor.sem_create(100);
-    semafor.sem_set_value(0, 1); // semafor 0 - semafor startowy
+    semid = semafor.id;
+    semafor.sem_set_value(0, 4); // semafor 0 - semafor startowy
     semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1] obecni pasażerowie
     semafor.sem_set_value(2, 1); // semafor 2 - pamiec[2] obecni pasażerowie
     semafor.sem_set_value(3, K); // semafor 3 - pomost dla łodzi 1
@@ -79,11 +79,9 @@ int main() {
     semafor.sem_set_value(8, 0); // semafor 8 - wyładunek2
     semafor.sem_set_value(9, 0); // semafor 9 - załadunek1 
     semafor.sem_set_value(10, 0); // semafor 10 - załadunek2
-    semafor.sem_set_value(11, 0); // semafor kierunek pomostu1
-    semafor.sem_set_value(12, 0); // semafor kierunek pomostu2
+    semafor.sem_set_value(11, 2); // semafor kierunek pomostu1
+    semafor.sem_set_value(12, 2); // semafor kierunek pomostu2
     semafor.sem_set_value(13, 0); // semafor tworzenie pasażerów
-
-    semafor.sem_set_value(0, 4);
 
     pid_t pid_policjant = fork(); // tworzenie policjanta
     if (pid_policjant < 0) {
@@ -122,6 +120,8 @@ int main() {
         execl("./sternik", "./sternik", NULL);
         error("execl sternik");
     }
+
+    shared_mem[7] = mainp;
 
 
     for(int i = 0; i < 4; i++) {

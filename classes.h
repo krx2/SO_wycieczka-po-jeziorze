@@ -11,7 +11,7 @@
 
 void error(const char* msg) {
     char errmsg[50];
-    sprintf(errmsg, "Error %s", msg);
+    sprintf(errmsg, "[ERROR] %s", msg);
     perror(errmsg);
     exit(EXIT_FAILURE);
 }
@@ -88,6 +88,7 @@ class Sem {
     void sem_op(short unsigned sem_num, short sem_op) {
         struct sembuf op = {sem_num, sem_op, 0};
         if (semop(id, &op, 1) == -1) {
+            printf("semnum: %d sem_get_value: %d\n", sem_num, sem_get_value(sem_num));
             error("semop error");
         }
     }

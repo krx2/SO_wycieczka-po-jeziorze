@@ -5,6 +5,7 @@
 using namespace std;
 
 #define Tp 1
+#define Tk 2
 
 int* pamiec;
 
@@ -30,5 +31,8 @@ int main() {
     kolejka_komunikatow.msg_send(20); // Tp1
     kolejka_komunikatow.msg_send(21); // Tp2
     
-    pause();
+    sleep(Tk-Tp);
+
+    printf("[POLICJANT]: Wysyłanie sygnału Tk do %d...\n", pamiec[7]);
+    killpg(getpgrp(), SIGINT);
 }
