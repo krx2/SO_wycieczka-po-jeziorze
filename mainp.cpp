@@ -7,6 +7,8 @@
 #define N2 25
 #define T1 1
 #define T2 2
+#define Tp 1
+#define Tk 10
 
 using namespace std;
 
@@ -91,7 +93,6 @@ int main() {
         execl("./policjant", "./policjant", NULL);
         error("execl policjant");
     }
-    
 
     pid_t pid_kasjer = fork(); // tworzenie kasjera
     if (pid_kasjer < 0) {
@@ -122,6 +123,12 @@ int main() {
     }
 
     shared_mem[7] = mainp;
+
+    queue.msg_send(27);
+
+    sleep(Tk - Tp);
+    shared_mem[8] = 1;
+    printf("[Czas]: Godzina Tk, %d\n", shared_mem[8]);
 
 
     for(int i = 0; i < 4; i++) {

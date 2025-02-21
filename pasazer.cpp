@@ -174,7 +174,8 @@ int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
 
         semafor.sem_op(1+nr, -1); // blokuje pamięć
         if(pamiec[1+nr] + klient.miejsca <= pojemnosc_lodzi) {
-        pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
+            pamiec[1+nr] += klient.miejsca; // wchodzi na łódź
+            printf("\033[32m[PASAŻER]\033[0m: VIP %d Wszedł na łódź %d\n", klient.id, nr+1);
         } else {
             //printf("\033[32m[PASAŻER]\033[0m: VIP nie może wejść na łódź %d\n", 1+nr);
             semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
@@ -218,7 +219,7 @@ int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
         continue;
     }
 
-    printf("\033[32m[PASAŻER]\033[0m: %d wchodzi na pomost statku %d\n", klient.id, nr+1);
+    //printf("\033[32m[PASAŻER]\033[0m: %d wchodzi na pomost statku %d\n", klient.id, nr+1);
 
     semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
 
