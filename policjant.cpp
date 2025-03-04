@@ -39,11 +39,11 @@ int main() {
     kolejka_komunikatow.msg_send(21); // Tp2
 
 
-    printf("czekanie na 23\n");
+    //printf("czekanie na 23\n");
     kolejka_komunikatow.msg_rcv(23);
-    printf("czekanie na 24\n");
+    //printf("czekanie na 24\n");
     kolejka_komunikatow.msg_rcv(24);
-    printf("czekanie na 27\n");
+    //printf("czekanie na 27\n");
     kolejka_komunikatow.msg_rcv(27);
 
     pid_t pid_sternik1 = pamiec[3];
@@ -57,11 +57,11 @@ int main() {
     while (1) {
         cin >> c;
 
-        printf("[POLICJANT]: Przechwycono %c\n", c);
+        //printf("[POLICJANT]: Przechwycono %c\n", c);
 
 
         if(c == '1') {
-            printf("c = 1\n");
+            //printf("c = 1\n");
 
             printf("[POLICJANT]: Wysyłanie SIGUSR1 do %d\n", pid_sternik1);
             kill(pid_sternik1, SIGUSR1);
@@ -71,9 +71,9 @@ int main() {
         } else if(c == 'c') {
             printf("[POLICJANT]: Wysyłanie SIGINT\n");
             kill(pid_mainp, SIGINT);
-        } else printf("nie dziala\n");
+        }
 
-        printf("po ifie\n");
+        //printf("po ifie\n");
     }
     
 }

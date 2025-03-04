@@ -81,8 +81,8 @@ int main() {
     semafor.sem_set_value(8, 0); // semafor 8 - wyładunek2
     semafor.sem_set_value(9, 0); // semafor 9 - załadunek1 
     semafor.sem_set_value(10, 0); // semafor 10 - załadunek2
-    semafor.sem_set_value(11, 2); // semafor kierunek pomostu1
-    semafor.sem_set_value(12, 2); // semafor kierunek pomostu2
+    semafor.sem_set_value(11, 0); // semafor kierunek pomostu1
+    semafor.sem_set_value(12, 0); // semafor kierunek pomostu2
     semafor.sem_set_value(13, 0); // semafor tworzenie pasażerów
 
     pid_t pid_policjant = fork(); // tworzenie policjanta
@@ -131,33 +131,7 @@ int main() {
     printf("[Czas]: Godzina Tk, %d\n", shared_mem[8]);
 
 
-    for(int i = 0; i < 4; i++) {
-        int status;
-        pid_t child_pid = wait(&status);  // Czekaj na dowolny zakonczony proces
-
-        if (child_pid == -1) {
-            error("wait error");
-        }
-
-        if(child_pid == pid_policjant) {
-            if(WIFEXITED(status)) 
-                printf("Proces policjant (%d) zakonczony z kodem %d\n", pid_policjant, WEXITSTATUS(status));
-        } else if(child_pid == pid_kasjer) {
-            if(WIFEXITED(status)) 
-                printf("Proces kasjer (%d) zakonczony z kodem %d\n", pid_kasjer, WEXITSTATUS(status));
-        } else if(child_pid == pid_pasazer) {
-            if(WIFEXITED(status)) 
-                printf("Proces pasazer (%d) zakonczony z kodem %d\n", pid_pasazer, WEXITSTATUS(status));
-        } else if(child_pid == pid_sternik) {
-            if(WIFEXITED(status)) 
-                printf("Proces sternik (%d) zakonczony z kodem %d\n", pid_sternik, WEXITSTATUS(status));
-        }
-    }
-
-    memory.shm_detach(shared_mem);
-    memory.shm_delete();
-    queue.msg_ctl();
-    semafor.sem_remove();
+    pause();
 
     return 0;
 }
