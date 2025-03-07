@@ -71,8 +71,8 @@ int main() {
     semafor.sem_create(100);
     semid = semafor.id;
     semafor.sem_set_value(0, 4); // semafor 0 - semafor startowy
-    semafor.sem_set_value(1, 1); // semafor 1 - pamiec[1] obecni pasażerowie
-    semafor.sem_set_value(2, 1); // semafor 2 - pamiec[2] obecni pasażerowie
+    semafor.sem_set_value(1, 1); // semafor 1 - blokada pamiec[1] obecni pasażerowie
+    semafor.sem_set_value(2, 1); // semafor 2 - blokada pamiec[2] obecni pasażerowie
     semafor.sem_set_value(3, K); // semafor 3 - pomost dla łodzi 1
     semafor.sem_set_value(4, K); // semafor 4 - pomost dla łodzi 2
     semafor.sem_set_value(5, 0); // semafor 5 - vip1 
@@ -81,9 +81,10 @@ int main() {
     semafor.sem_set_value(8, 0); // semafor 8 - wyładunek2
     semafor.sem_set_value(9, 0); // semafor 9 - załadunek1 
     semafor.sem_set_value(10, 0); // semafor 10 - załadunek2
-    semafor.sem_set_value(11, 0); // semafor kierunek pomostu1
-    semafor.sem_set_value(12, 0); // semafor kierunek pomostu2
-    semafor.sem_set_value(13, 0); // semafor tworzenie pasażerów
+    semafor.sem_set_value(11, 0); // semafor 11 - kolejka na molo dla łodzi 1
+    semafor.sem_set_value(12, 0); // semafor 11 - kolejka na molo dla łodzi 2
+    semafor.sem_set_value(13, 0); // semafor 13 - tworzenie pasażerów
+    semafor.sem_set_value(14, 0); // semafor 14 - końcowy
 
     pid_t pid_policjant = fork(); // tworzenie policjanta
     if (pid_policjant < 0) {
@@ -128,7 +129,9 @@ int main() {
 
     sleep(Tk - Tp);
     shared_mem[8] = 1;
-    printf("[Czas]: Godzina Tk, %d\n", shared_mem[8]);
+    printf("[Czas]: Godzina Tk\n");
+
+    kill(pid_policjant, SIGUSR1);
 
 
     pause();

@@ -10,15 +10,22 @@ using namespace std;
 int* pamiec;
 
 void signal_handler(int sig) {
-    printf("[POLICJANT]: Kończenie działania...\n");
-    kill(pamiec[7], SIGINT);
-    if (shmdt(pamiec) == -1) error("shmdt error");
-    exit(EXIT_SUCCESS);
+
+    if(sig == SIGUSR1) { // tk
+        kill(pamiec[5], SIGINT);
+    }
+    else if(sig == SIGINT) {
+        printf("[POLICJANT]: Kończenie działania...\n");
+        kill(pamiec[7], SIGINT);
+        if (shmdt(pamiec) == -1) error("shmdt error");
+        exit(EXIT_SUCCESS);
+    }
 }
 
 int main() {
 
     signal(SIGINT, signal_handler);
+    signal(SIGUSR1, signal_handler);
 
     MsgQueue kolejka_komunikatow(1234);
     kolejka_komunikatow.msg_attach();
@@ -30,11 +37,14 @@ int main() {
     pamiec_dzielona.shm_attach();
     pamiec = pamiec_dzielona.shm_get();
 
+    pamiec[6] = getpid();
+
     semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
     
 
     sleep(Tp);
+    
     kolejka_komunikatow.msg_send(20); // Tp1
     kolejka_komunikatow.msg_send(21); // Tp2
 
@@ -43,6 +53,7 @@ int main() {
     kolejka_komunikatow.msg_rcv(23);
     //printf("czekanie na 24\n");
     kolejka_komunikatow.msg_rcv(24);
+    kolejka_komunikatow.msg_rcv(25);
     //printf("czekanie na 27\n");
     kolejka_komunikatow.msg_rcv(27);
 

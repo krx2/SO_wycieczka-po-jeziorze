@@ -15,7 +15,23 @@ using namespace std;
 
 #define MAX_PASSENGERS 500
 
-volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
+volatile sig_atomic_t liczba_pasazerow = 0;
+
+pid_t pid_policjant;
+
+void signal_handler(int sig) {
+
+    Sem semafor(1234);
+    semafor.sem_attach();
+
+    semafor.sem_op(14, -2); // czekanie na zakończenie rejsów
+
+    printf("\033[32m[PASAŻER]\033[0m: Pozostali pasażerowie czekający na molo: %d Opuszczają jezioro\n", liczba_pasazerow);
+
+    kill(pid_policjant, SIGINT);
+
+    exit(EXIT_SUCCESS);
+}
 
 class pasazer {
     public:
@@ -89,14 +105,18 @@ void* pasazerowie(void* arg) {
     Sem semafor(1234);
     semafor.sem_attach();
 
+    liczba_pasazerow++;
+
     if(semafor.sem_get_value(13) == 0) { // niech się stworzy następny
         semafor.sem_op(13, 1);
     }
+
+    
     
     
     // Po transakcji klient idzie na molo i czeka na sygnał od kapitana
 
-    while (!stop_requested) {
+    while (pamiec[8] != 1) {
         if(bilety(kolejka_komunikatow, pamiec, klient) == -1) {
             //printf("\033[32m[PASAŻER]\033[0m: Transakcja nieudana. Klient opuszcza jezioro. ID: %d\n", klient.id);
             break;
@@ -111,7 +131,7 @@ void* pasazerowie(void* arg) {
     }
     
     
-
+    liczba_pasazerow--;
     memory.shm_detach(pamiec);
     return nullptr;
 }
@@ -228,8 +248,14 @@ int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
 
 int main() {
 
+    signal(SIGINT, signal_handler);
+
     Sem semafor(1234);
     semafor.sem_attach();
+
+    SharedMem memory(1234, 1024);
+    memory.shm_attach();
+    int* pamiec = memory.shm_get();
 
     semafor.sem_op(0, -1); // czekanie na start symulacji
     
@@ -243,5 +269,14 @@ int main() {
         if(i != MAX_PASSENGERS - 1) semafor.sem_op(13, -1);
     }
 
-    pause();
+    while(pamiec[8] != 1) {
+        continue;
+    }
+
+    pid_policjant = pamiec[6];
+
+    memory.shm_detach(pamiec);
+
+    raise(SIGINT);
+
 }

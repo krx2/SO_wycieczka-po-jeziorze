@@ -36,11 +36,11 @@ void signal_handler(int sig) {
         printf("\033[34m[STERNIK2]\033[0m: Otrzymano sygnał SIGUSR2\n");
     } else {
         if (pamiec != nullptr) {
-        if (shmdt(pamiec) == -1) {
-            perror("shmdt error sternik");
+            if (shmdt(pamiec) == -1) {
+                perror("shmdt error sternik");
+            }
         }
-    }
-    exit(EXIT_SUCCESS);
+        exit(EXIT_SUCCESS);
     }
     stop_requested = 3; // Ustawienie flagi końca działania
     //printf("\033[34m[STERNIK]\033[0m: Otrzymano sygnał SIGINT\n");
@@ -130,8 +130,6 @@ void sternik(int nr) {
             if(pasazerowie < pojemnosc) {
                 printf("\033[34m[STERNIK%d]\033[0m: Rozpoczynam załadunek pasażerów.\n", nr+1);
 
-                sleep(1);
-
                 semafor.sem_op(1+nr, -1); // blokuje pamięć
                 pasazerowie = pamiec[1+nr]; // update liczby pasazerow
                 semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
@@ -196,6 +194,9 @@ void sternik(int nr) {
         semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
         semafor.sem_set_value(POMOST_WYL_SEM+nr, pasazerowie);
+        usleep(100);
+        semafor.sem_op(14, 1);
+
         pamiec_dzielona.shm_detach(pamiec);
         exit(0);
 }

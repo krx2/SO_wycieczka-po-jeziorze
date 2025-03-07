@@ -3,6 +3,7 @@
 
 using namespace std;
 
+// Cennik:
 # define T1N 15
 # define T1U 7
 # define T2N 10
@@ -28,8 +29,10 @@ int oblicz_kwote(int bilet, int dziecko, bool vip) {
 volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
 
 int* pamiec = nullptr;
+int utarg = 0;
 
 void signal_handler(int sig) {
+    printf("[KASJER]: Zakończono pracę. Utarg: %d\n", utarg);
     if (pamiec != nullptr) {
         if (shmdt(pamiec) == -1) {
             perror("shmdt error");
@@ -51,7 +54,8 @@ int main() {
     Sem semafor(1234);
     semafor.sem_attach();
 
-    printf("[KASJER]\tgotowy\n");
+    pamiec[5] = getpid();
+    kolejka_komunikatow.msg_send(25);
 
     semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
@@ -63,8 +67,6 @@ int main() {
     bool vip;
     int dziecko;
     int kwota;
-
-    int utarg = 0;
 
     signal(SIGINT, signal_handler);
 
