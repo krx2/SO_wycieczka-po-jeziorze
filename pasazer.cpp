@@ -3,17 +3,7 @@
 
 using namespace std;
 
-#define K 10
-#define N1 30
-#define N2 25
 
-#define VIP_QUEUE_SEM 5
-#define LOADING_SEM 9
-#define POMOST_SEM 3
-#define POMOST_ZAL_SEM 11
-#define POMOST_WYL_SEM 7
-
-#define MAX_PASSENGERS 500
 
 volatile sig_atomic_t liczba_pasazerow = 0;
 
@@ -45,8 +35,8 @@ class pasazer {
     int portfel;
     pasazer(int p_id) {
         id = p_id;
-        wiek = rand() % 65 +15;
-        if(rand() % 4 == 3) {
+        wiek = rand() % 65 + 15;
+        if(rand() % 4 == 0) {
             wiek_dziecka = rand() % 15 + 1;
             miejsca = 2;
         }
@@ -64,9 +54,9 @@ class pasazer {
     void ustaw_do_kasy() {
         
         if(wiek_dziecka == 0) {
-            //printf("Pasażer o ID %d ustawił się do kasy\n", id);
+            printf("Pasażer o ID %d ustawił się do kasy\n", id);
         } else {
-            //printf("Pasażer z dzieckiem, ID %d ustawili się do kasy\n", id);
+            printf("Pasażer z dzieckiem, ID %d ustawili się do kasy\n", id);
         }
     }
 
@@ -138,7 +128,7 @@ void* pasazerowie(void* arg) {
 
 int bilety(MsgQueue& kolejka_komunikatow, int* pamiec, pasazer& klient) {
     kolejka_komunikatow.msg_rcv(1);
-    klient.ustaw_do_kasy();
+    //klient.ustaw_do_kasy();
     pamiec[0] = klient.id;
     kolejka_komunikatow.msg_send(2);
     // Klient czeka na informacje o zniżkach

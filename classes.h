@@ -9,18 +9,41 @@
 #include <signal.h>
 #include <wait.h>
 
+// Tych definów nie ruszać:
+#define VIP_QUEUE_SEM 5
+#define LOADING_SEM 9
+#define POMOST_SEM 3
+#define POMOST_ZAL_SEM 11
+#define POMOST_WYL_SEM 7
+
+
+// Poniższe definy można edytować, byle były typu int:
+// stałe z polecenia:
+#define K 10
+#define N1 30
+#define N2 25
+#define T1 1
+#define T2 2
+#define Tp 1
+#define Tk 10
+
+
+// Cennik biletów, N - normalny, U - ulgowy:
+# define T1N 15
+# define T1U 7
+# define T2N 10
+# define T2U 5
+
+// liczba pasażerów nad jeziorem:
+#define MAX_PASSENGERS 500
+
+
 void error(const char* msg) {
     char errmsg[50];
-    sprintf(errmsg, "[ERROR] %s", msg);
+    sprintf(errmsg, "\033[1;31m[ERROR]\033[0m: %s", msg);
     perror(errmsg);
     exit(EXIT_FAILURE);
 }
-
-/*struct msgbuf {
-    long mtype;
-    char mtext[1];
-};
-*/
 
 union semun {
     int val;              // Wartość semafora (np. 0 lub 1 dla semafora binarnego).

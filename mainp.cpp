@@ -1,15 +1,6 @@
 #include <iostream>
 #include "classes.h"
 
-
-#define K 10
-#define N1 30
-#define N2 25
-#define T1 1
-#define T2 2
-#define Tp 1
-#define Tk 10
-
 using namespace std;
 
 int* shared_mem;
@@ -36,7 +27,7 @@ void signal_handler(int sig) {
     // Zabijanie grupy procesów
     if (killpg(getpgrp(), SIGINT) == -1) perror("killpg error");
 
-    printf("[MAINP]: Pomyślnie zakończono działanie programu!\n");
+    printf("\033[35m[MAINP]\033[0m: Pomyślnie zakończono działanie programu!\n");
 
     // Wyjście z programu
     exit(EXIT_SUCCESS);
@@ -90,7 +81,7 @@ int main() {
     if (pid_policjant < 0) {
         error("fork policjant");
     } else if (pid_policjant == 0) {
-        printf("Inicjowanie programu policjant\n");
+        printf("\033[35m[MAINP]\033[0m: Inicjowanie programu policjant\n");
         execl("./policjant", "./policjant", NULL);
         error("execl policjant");
     }
@@ -99,7 +90,7 @@ int main() {
     if (pid_kasjer < 0) {
         error("fork kasjer");
     } else if (pid_kasjer == 0) {
-        printf("Inicjowanie programu kasjer\n");
+        printf("\033[35m[MAINP]\033[0m: Inicjowanie programu kasjer\n");
         execl("./kasjer", "./kasjer", NULL);
         error("execl kasjer");
     }
@@ -108,7 +99,7 @@ int main() {
     if (pid_pasazer < 0) {
         error("fork pasazer");
     } else if (pid_pasazer == 0) {
-        printf("Inicjowanie programu pasazer\n");
+        printf("\033[35m[MAINP]\033[0m: Inicjowanie programu pasazer\n");
         execl("./pasazer", "./pasazer", NULL);
         error("execl pasazer");
     }
@@ -118,7 +109,7 @@ int main() {
     if (pid_sternik < 0) {
         error("fork sternik");
     } else if (pid_sternik == 0) {
-        printf("Inicjowanie programu sternik\n");
+        printf("\033[35m[MAINP]\033[0m: Inicjowanie programu sternik\n");
         execl("./sternik", "./sternik", NULL);
         error("execl sternik");
     }
@@ -129,7 +120,7 @@ int main() {
 
     sleep(Tk - Tp);
     shared_mem[8] = 1;
-    printf("[Czas]: Godzina Tk\n");
+    printf("\033[35m[CZAS]\033[0m: Godzina Tk\n");
 
     kill(pid_policjant, SIGUSR1);
 

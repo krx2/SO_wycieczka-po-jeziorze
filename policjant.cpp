@@ -4,8 +4,7 @@
 
 using namespace std;
 
-#define Tp 1
-#define Tk 10
+
 
 int* pamiec;
 
@@ -15,7 +14,7 @@ void signal_handler(int sig) {
         kill(pamiec[5], SIGINT);
     }
     else if(sig == SIGINT) {
-        printf("[POLICJANT]: Kończenie działania...\n");
+        printf("\033[36m[POLICJANT]\033[0m: Kończenie działania...\n");
         kill(pamiec[7], SIGINT);
         if (shmdt(pamiec) == -1) error("shmdt error");
         exit(EXIT_SUCCESS);
@@ -63,7 +62,7 @@ int main() {
 
     char c;
 
-    printf("[POLICJANT] start\n");
+    printf("\033[36m[POLICJANT]\033[0m: start\n");
     
     while (1) {
         cin >> c;
@@ -74,13 +73,13 @@ int main() {
         if(c == '1') {
             //printf("c = 1\n");
 
-            printf("[POLICJANT]: Wysyłanie SIGUSR1 do %d\n", pid_sternik1);
+            printf("\033[36m[POLICJANT]\033[0m: Wysyłanie SIGUSR1 do %d\n", pid_sternik1);
             kill(pid_sternik1, SIGUSR1);
         } else if(c == '2') {
-            printf("[POLICJANT]: Wysyłanie SIGUSR2 do %d\n", pid_sternik2);
+            printf("\033[36m[POLICJANT]\033[0m: Wysyłanie SIGUSR2 do %d\n", pid_sternik2);
             kill(pid_sternik2, SIGUSR2);
         } else if(c == 'c') {
-            printf("[POLICJANT]: Wysyłanie SIGINT\n");
+            printf("\033[36m[POLICJANT]\033[0m: Wysyłanie SIGINT\n");
             kill(pid_mainp, SIGINT);
         }
 

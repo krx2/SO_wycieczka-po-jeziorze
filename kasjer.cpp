@@ -3,12 +3,6 @@
 
 using namespace std;
 
-// Cennik:
-# define T1N 15
-# define T1U 7
-# define T2N 10
-# define T2U 5
-
 int oblicz_kwote(int bilet, int dziecko, bool vip) {
     int kwota = 0;
 
@@ -32,7 +26,7 @@ int* pamiec = nullptr;
 int utarg = 0;
 
 void signal_handler(int sig) {
-    printf("[KASJER]: Zakończono pracę. Utarg: %d\n", utarg);
+    printf("\033[33m[KASJER]\033[0m: Zakończono pracę. Utarg: %d\n", utarg/100);
     if (pamiec != nullptr) {
         if (shmdt(pamiec) == -1) {
             perror("shmdt error");
@@ -59,7 +53,7 @@ int main() {
 
     semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
-    printf("Kasjer działa\n");
+    printf("\033[33m[KASJER]\033[0m: działa\n");
 
     int obsluzeni[10000] = {0};
     int klient;

@@ -3,19 +3,6 @@
 
 using namespace std;
 
-#define K 10
-#define N1 30
-#define N2 25
-#define T1 1
-#define T2 2
-
-#define VIP_QUEUE_SEM 5
-#define LOADING_SEM 9
-#define POMOST_SEM 3
-#define POMOST_ZAL_SEM 11
-#define POMOST_WYL_SEM 7
-
-
 volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
 
 pid_t pid_sternik1;
@@ -100,7 +87,6 @@ void sternik(int nr) {
 
             printf("\033[34m[STERNIK%d]\033[0m: Rozpoczynam załadunek VIPów.\n", nr+1);
             while (pasazerowie < pojemnosc) {
-                //usleep(100);
 
                 semafor.sem_op(VIP_QUEUE_SEM+nr, 1);
 
@@ -114,8 +100,6 @@ void sternik(int nr) {
                 semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
             }
-
-            sleep(1);
 
             semafor.sem_op(1+nr, -1); // blokuje pamięć
             pasazerowie = pamiec[1+nr]; // update liczby pasazerow
@@ -134,9 +118,24 @@ void sternik(int nr) {
                 pasazerowie = pamiec[1+nr]; // update liczby pasazerow
                 semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
-                semafor.sem_set_value(POMOST_ZAL_SEM+nr, pojemnosc - pasazerowie); // daje możliwość wejścia na pokład
+                
+
+                if(pojemnosc % 2 == 1) {
+                    semafor.sem_set_value(POMOST_ZAL_SEM+nr, pojemnosc - pasazerowie + 1); // daje możliwość wejścia na pokład
+                } else {
+                    semafor.sem_set_value(POMOST_ZAL_SEM+nr, pojemnosc - pasazerowie); // daje możliwość wejścia na pokład
+                }
 
                 while(pasazerowie != pojemnosc) { // czekaj aż wszyscy wsiądą
+
+                    if(pamiec[8] == 1 || stop_requested == 1+nr || stop_requested == 3) {
+                        semafor.sem_set_value(POMOST_ZAL_SEM+nr, 0);
+                        break;
+                    }
+
+                    if(pojemnosc % 2 == 1 && pasazerowie == pojemnosc - 1 && semafor.sem_get_value(POMOST_ZAL_SEM+nr) == 0) {
+                        break;
+                    }
                     
                     semafor.sem_op(1+nr, -1); // blokuje pamięć
                     pasazerowie = pamiec[1+nr]; // update liczby pasazerow
