@@ -25,7 +25,7 @@
 #define T1 1
 #define T2 2
 #define Tp 1
-#define Tk 10
+#define Tk 30
 
 
 // Cennik biletów, N - normalny, U - ulgowy:
@@ -40,7 +40,7 @@
 
 void error(const char* msg) {
     char errmsg[50];
-    sprintf(errmsg, "\033[1;31m[ERROR]\033[0m: %s", msg);
+    sprintf(errmsg, "\033[1;31m[ERROR]\033[0m: %s, PID: %d", msg, getpid());
     perror(errmsg);
     exit(EXIT_FAILURE);
 }
@@ -111,14 +111,20 @@ class Sem {
     void sem_op(short unsigned sem_num, short sem_op) {
         struct sembuf op = {sem_num, sem_op, 0};
         if (semop(id, &op, 1) == -1) {
-            printf("semnum: %d sem_get_value: %d\n", sem_num, sem_get_value(sem_num));
-            error("semop error");
+            if (errno == EINTR) {
+                semop(id, &op, 1);
+            } else {
+                printf("semnum: %d sem_get_value: %d\n", sem_num, sem_get_value(sem_num));
+                error("semop error");
+            }
+            
         }
     }
 
     int sem_get_value(short sem_num) {
         int value = semctl(id, sem_num, GETVAL);
         if (value == -1) {
+            printf("semctl GETVAL error semnum: %d\n", sem_num);
             error("semctl GETVAL error");
         }
         return value;

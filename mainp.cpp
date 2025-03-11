@@ -3,17 +3,33 @@
 
 using namespace std;
 
-int* shared_mem;
+int* shared_mem = nullptr;
 
 int shmid;
 int semid;
 int msgid;
+
+pid_t mainp;
+pid_t pid_policjant;
+pid_t pid_kasjer;
+pid_t pid_pasazer;
+pid_t pid_sternik;
+pid_t pid_sternik1;
+pid_t pid_sternik2;
 
 void signal_handler(int sig) {
     // Bezpieczne odłączenie pamięci współdzielonej
     if (shared_mem != NULL) {
         if (shmdt(shared_mem) == -1) perror("shmdt error");
     }
+
+    kill(pid_pasazer, SIGUSR2);
+    kill(pid_pasazer, SIGTERM);
+    kill(pid_sternik1, SIGINT);
+    kill(pid_sternik2, SIGINT);
+    kill(pid_kasjer, SIGINT);
+    kill(pid_sternik, SIGINT);
+    kill(pid_policjant, SIGINT);
 
     // Usunięcie segmentu pamięci współdzielonej
     if (shmctl(shmid, IPC_RMID, NULL) == -1) perror("shmctl error");
@@ -23,9 +39,6 @@ void signal_handler(int sig) {
 
     // Usunięcie zestawu semaforów
     if (semctl(semid, 0, IPC_RMID) == -1) perror("semctl IPC_RMID error");
-
-    // Zabijanie grupy procesów
-    if (killpg(getpgrp(), SIGINT) == -1) perror("killpg error");
 
     printf("\033[35m[MAINP]\033[0m: Pomyślnie zakończono działanie programu!\n");
 
@@ -44,12 +57,12 @@ int main() {
 
     setpgid(0, 0);
 
-    SharedMem memory(1234, 1024);
+    SharedMem memory(1234, 12);
     memory.shm_create();
     int* shared_mem = memory.shm_get();
     shmid = memory.id;
 
-    for(int i = 0; i < 1024; i++) {
+    for(int i = 0; i < 12; i++) {
         shared_mem[i] = 0;
     }
 
@@ -59,9 +72,9 @@ int main() {
     
 
     Sem semafor(1234);
-    semafor.sem_create(100);
+    semafor.sem_create(15);
     semid = semafor.id;
-    semafor.sem_set_value(0, 4); // semafor 0 - semafor startowy
+    semafor.sem_set_value(0, 0); // semafor 0 - semafor startowy
     semafor.sem_set_value(1, 1); // semafor 1 - blokada pamiec[1] obecni pasażerowie
     semafor.sem_set_value(2, 1); // semafor 2 - blokada pamiec[2] obecni pasażerowie
     semafor.sem_set_value(3, K); // semafor 3 - pomost dla łodzi 1
@@ -77,7 +90,7 @@ int main() {
     semafor.sem_set_value(13, 0); // semafor 13 - tworzenie pasażerów
     semafor.sem_set_value(14, 0); // semafor 14 - końcowy
 
-    pid_t pid_policjant = fork(); // tworzenie policjanta
+    pid_policjant = fork(); // tworzenie policjanta
     if (pid_policjant < 0) {
         error("fork policjant");
     } else if (pid_policjant == 0) {
@@ -86,7 +99,7 @@ int main() {
         error("execl policjant");
     }
 
-    pid_t pid_kasjer = fork(); // tworzenie kasjera
+    pid_kasjer = fork(); // tworzenie kasjera
     if (pid_kasjer < 0) {
         error("fork kasjer");
     } else if (pid_kasjer == 0) {
@@ -95,7 +108,7 @@ int main() {
         error("execl kasjer");
     }
 
-    pid_t pid_pasazer = fork(); // tworzenie pasażera
+    pid_pasazer = fork(); // tworzenie pasażera
     if (pid_pasazer < 0) {
         error("fork pasazer");
     } else if (pid_pasazer == 0) {
@@ -105,7 +118,7 @@ int main() {
     }
 
     
-    pid_t pid_sternik = fork(); // tworzenie sternika
+    pid_sternik = fork(); // tworzenie sternika
     if (pid_sternik < 0) {
         error("fork sternik");
     } else if (pid_sternik == 0) {
@@ -114,16 +127,25 @@ int main() {
         error("execl sternik");
     }
 
+    semafor.sem_op(0, 4);
+
+    //printf("czekanie na 23\n");
+    queue.msg_rcv(23);
+    //printf("czekanie na 24\n");
+    queue.msg_rcv(24);
+
+    pid_sternik1 = shared_mem[3];
+    pid_sternik2 = shared_mem[4];
+
     shared_mem[7] = mainp;
 
     queue.msg_send(27);
 
+    printf("\033[35m[MAINP]\033[0m: PID: %d\n", getpid());
+
     sleep(Tk - Tp);
     shared_mem[8] = 1;
     printf("\033[35m[CZAS]\033[0m: Godzina Tk\n");
-
-    kill(pid_policjant, SIGUSR1);
-
 
     pause();
 

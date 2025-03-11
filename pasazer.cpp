@@ -3,24 +3,25 @@
 
 using namespace std;
 
-
-
 volatile sig_atomic_t liczba_pasazerow = 0;
 
 pid_t pid_policjant;
 
 void signal_handler(int sig) {
 
-    Sem semafor(1234);
-    semafor.sem_attach();
+    if(sig == SIGUSR1) {
+        Sem semafor(1234);
+        semafor.sem_attach();
 
-    semafor.sem_op(14, -2); // czekanie na zakończenie rejsów
+        semafor.sem_op(14, -2); // czekanie na zakończenie rejsów
 
-    printf("\033[32m[PASAŻER]\033[0m: Pozostali pasażerowie czekający na molo: %d Opuszczają jezioro\n", liczba_pasazerow);
+        printf("\033[32m[PASAŻER]\033[0m: Pozostali pasażerowie czekający na molo: %d Opuszczają jezioro\n", liczba_pasazerow);
 
-    kill(pid_policjant, SIGINT);
+        kill(pid_policjant, SIGUSR1);
 
-    exit(EXIT_SUCCESS);
+    } else if(sig == SIGUSR2) {
+        printf("\033[32m[PASAŻER]\033[0m: Pozostali pasażerowie czekający na molo: %d Opuszczają jezioro\n", liczba_pasazerow);
+    }
 }
 
 class pasazer {
@@ -85,7 +86,7 @@ void* pasazerowie(void* arg) {
     int id = *static_cast<int*>(arg);
     pasazer klient(id);
 
-    SharedMem memory(1234, 1024);
+    SharedMem memory(1234, 12);
     memory.shm_attach();
     int* pamiec = memory.shm_get();
 
@@ -199,6 +200,11 @@ int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
         
         semafor.sem_op(POMOST_ZAL_SEM+nr, -1*klient.miejsca); // czeka w kolejce na wejście
 
+        if(pamiec[10+nr] != 1) {
+            printf("\033[32m[PASAŻER]\033[0m: %d Próbuje wejść na zamnknięty pomost %d\n", klient.id, nr+1);
+            return 1;
+        }
+
         printf("\033[32m[PASAŻER]\033[0m: %d Czeka na wejście na pomost %d\n", klient.id, nr+1);
 
         semafor.sem_op(POMOST_SEM+nr, -1*klient.miejsca); // wchodzi na pomost
@@ -227,29 +233,30 @@ int molo_pomost_statek(Sem& semafor, int* pamiec, pasazer& klient) {
 
     semafor.sem_op(1+nr, -1); // blokuje pamięć
     pamiec[1+nr] -= klient.miejsca; // schodzi z łodzi
+    semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
+    printf("\033[32m[PASAŻER]\033[0m: %d zszedł ze statku %d\n", klient.id, nr+1);
     semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
-    semafor.sem_op(POMOST_SEM+nr, klient.miejsca); // zwalnia miejsce na pomoście
-
-    printf("\033[32m[PASAŻER]\033[0m: %d zszedł ze statku %d\n", klient.id, nr+1);
+    
 
     return 0;
 }
 
 int main() {
 
-    signal(SIGINT, signal_handler);
+    signal(SIGUSR1, signal_handler);
+    signal(SIGUSR2, signal_handler);
 
     Sem semafor(1234);
     semafor.sem_attach();
 
-    SharedMem memory(1234, 1024);
+    SharedMem memory(1234, 12);
     memory.shm_attach();
     int* pamiec = memory.shm_get();
 
     semafor.sem_op(0, -1); // czekanie na start symulacji
     
-    printf("\033[32m[PASAŻER]\033[0m: działa\n");
+    printf("\033[32m[PASAŻER]\033[0m: działa, PID: %d\n", getpid());
 
     for(int i = 1; i < MAX_PASSENGERS; i++) {
         pthread_t thread;
@@ -267,6 +274,8 @@ int main() {
 
     memory.shm_detach(pamiec);
 
-    raise(SIGINT);
+    raise(SIGUSR1);
+
+    pause();
 
 }

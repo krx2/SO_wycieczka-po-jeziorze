@@ -8,7 +8,7 @@ volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
 pid_t pid_sternik1;
 pid_t pid_sternik2;
 
-int* pamiec;
+int* pamiec = nullptr;
 
 void signal_handler(int sig) {
     if (sig == SIGUSR1) {
@@ -26,11 +26,10 @@ void signal_handler(int sig) {
             if (shmdt(pamiec) == -1) {
                 perror("shmdt error sternik");
             }
+            pamiec = nullptr;
         }
         exit(EXIT_SUCCESS);
     }
-    stop_requested = 3; // Ustawienie flagi końca działania
-    //printf("\033[34m[STERNIK]\033[0m: Otrzymano sygnał SIGINT\n");
 }
 
 void sternik(int nr) {
@@ -38,8 +37,9 @@ void sternik(int nr) {
 
         signal(SIGUSR1, signal_handler);
         signal(SIGUSR2, signal_handler);
+        signal(SIGINT, signal_handler);
 
-        SharedMem pamiec_dzielona(1234, 1024);
+        SharedMem pamiec_dzielona(1234, 12);
         pamiec_dzielona.shm_attach();
         pamiec = pamiec_dzielona.shm_get();
 
@@ -50,7 +50,6 @@ void sternik(int nr) {
         semafor.sem_attach();
 
         pamiec[3+nr] = getpid();
-        printf("pid sternik%d: %d", 1+nr, pamiec[3+nr]);
 
         kolejka_komunikatow.msg_send(23+nr);
 
@@ -66,16 +65,19 @@ void sternik(int nr) {
         }
 
         int pasazerowie = 0;
+
+        pamiec[10+nr] = 1; // kierunek pomostu 1 - do wchodzenia, 2 - do wychodzenia
         
-
-        printf("\033[34m[STERNIK%d]\033[0m: działa!\n", 1+nr);
-
-        kolejka_komunikatow.msg_rcv(20+nr); // Tp czas początkowy
-
         semafor.sem_set_value(POMOST_SEM+nr, K); // semafor dla pomostu
         semafor.sem_set_value(POMOST_ZAL_SEM+nr, 0); // semafor dla załadunku
 
         pamiec[1+nr] = 0; // ile jest osób na łodzi
+
+        printf("\033[34m[STERNIK%d]\033[0m: działa, PID: %d\n", 1+nr, getpid());
+
+        kolejka_komunikatow.msg_rcv(20+nr); // Tp czas początkowy
+
+
 
         while(pamiec[8] != 1 && stop_requested != 1+nr && stop_requested != 3) {
 
@@ -115,6 +117,7 @@ void sternik(int nr) {
                 printf("\033[34m[STERNIK%d]\033[0m: Rozpoczynam załadunek pasażerów.\n", nr+1);
 
                 semafor.sem_op(1+nr, -1); // blokuje pamięć
+                pamiec[10+nr] = 1;
                 pasazerowie = pamiec[1+nr]; // update liczby pasazerow
                 semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
@@ -141,8 +144,9 @@ void sternik(int nr) {
                     pasazerowie = pamiec[1+nr]; // update liczby pasazerow
                     semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
-                    continue;
                 }
+
+                semafor.sem_set_value(POMOST_ZAL_SEM+nr, 0);
 
                 printf("\033[34m[STERNIK%d]\033[0m: Czekam na opróżnienie pomostu...\n", nr+1);
                 while(semafor.sem_get_value(POMOST_SEM+nr) != K) { // oczekiwanie na opróżnienie pomostu
@@ -165,12 +169,18 @@ void sternik(int nr) {
 
             if(pamiec[8] == 1 || stop_requested == 1+nr || stop_requested == 3) break;
 
+            semafor.sem_op(1+nr, -1); // blokuje pamięć
+            pamiec[10+nr] = 2;
+            semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
+
             printf("\033[34m[STERNIK%d]\033[0m: Wyruszam w rejs. Liczba pasażerów: %d\n", nr+1, pasazerowie);
 
             // Rejs
             sleep(czas);
 
             printf("\033[34m[STERNIK%d]\033[0m: Rozpoczynam wyładunek.\n", nr+1);
+
+            
 
             semafor.sem_op(1+nr, -1); // blokuje pamięć
             pasazerowie = pamiec[1+nr]; // update liczby pasazerow
@@ -183,10 +193,15 @@ void sternik(int nr) {
                 pasazerowie = pamiec[1+nr]; // update liczby pasazerow
                 semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
             }
+
+            semafor.sem_set_value(POMOST_WYL_SEM+nr, 0);
             
             printf("\033[34m[STERNIK%d]\033[0m: Zakończono wyładunek: %d pasażerów na pokładzie. Liczba pasażerów na pomoście: %d \n", nr+1, pasazerowie, K - semafor.sem_get_value(POMOST_SEM+nr));
         }
         printf("\033[34m[STERNIK%d]\033[0m: Następny rejs się nie odbędzie\n", nr+1);
+
+        semafor.sem_set_value(VIP_QUEUE_SEM+nr, 0);
+        semafor.sem_set_value(LOADING_SEM+nr, 0);
 
         semafor.sem_op(1+nr, -1); // blokuje pamięć
         pasazerowie = pamiec[1+nr]; // update liczby pasazerow
@@ -204,6 +219,7 @@ int main() {
 
     signal(SIGUSR1, signal_handler);
     signal(SIGUSR2, signal_handler);
+    signal(SIGINT, signal_handler);
     
     pid_t pid_sternik = getpid();
 

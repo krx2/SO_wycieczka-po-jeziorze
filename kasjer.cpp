@@ -20,17 +20,16 @@ int oblicz_kwote(int bilet, int dziecko, bool vip) {
     return kwota * 100;
 }
 
-volatile sig_atomic_t stop_requested = 0; // Flaga do zatrzymania pętli
-
 int* pamiec = nullptr;
 int utarg = 0;
 
 void signal_handler(int sig) {
-    printf("\033[33m[KASJER]\033[0m: Zakończono pracę. Utarg: %d\n", utarg/100);
+    printf("\033[33m[KASJER]\033[0m: Zakończono pracę. Utarg: %d pln\n", utarg/100);
     if (pamiec != nullptr) {
         if (shmdt(pamiec) == -1) {
             perror("shmdt error");
         }
+        pamiec = nullptr;
     }
     exit(EXIT_SUCCESS);
 }
@@ -38,7 +37,7 @@ void signal_handler(int sig) {
 
 int main() {
 
-    SharedMem memory(1234, 1024);
+    SharedMem memory(1234, 12);
     memory.shm_attach();
     pamiec = memory.shm_get();
 
@@ -53,7 +52,7 @@ int main() {
 
     semafor.sem_op(0, -1); // start symulacji po zainicjowaniu procesów
 
-    printf("\033[33m[KASJER]\033[0m: działa\n");
+    printf("\033[33m[KASJER]\033[0m: działa, PID: %d\n", getpid());
 
     int obsluzeni[10000] = {0};
     int klient;
@@ -64,7 +63,7 @@ int main() {
 
     signal(SIGINT, signal_handler);
 
-    while (!stop_requested) {
+    while (pamiec[8] != 1) {
         kolejka_komunikatow.msg_send(1); // "Następny klient!"
         kolejka_komunikatow.msg_rcv(2); // Czeka na ID klienta
         klient = pamiec[0];
@@ -88,8 +87,6 @@ int main() {
         utarg += pamiec[0]; // dodaje utarg
         obsluzeni[klient]++;
         // "Nastepny klient!"
-        if(klient == 2200) break;
-
     }
     
     pause();
