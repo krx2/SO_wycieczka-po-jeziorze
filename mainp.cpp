@@ -25,10 +25,8 @@ void signal_handler(int sig) {
 
     kill(pid_pasazer, SIGUSR2);
     kill(pid_pasazer, SIGTERM);
-    kill(pid_sternik1, SIGINT);
-    kill(pid_sternik2, SIGINT);
-    kill(pid_kasjer, SIGINT);
     kill(pid_sternik, SIGINT);
+    kill(pid_kasjer, SIGINT);
     kill(pid_policjant, SIGINT);
 
     // Usunięcie segmentu pamięci współdzielonej
@@ -128,14 +126,6 @@ int main() {
     }
 
     semafor.sem_op(0, 4);
-
-    //printf("czekanie na 23\n");
-    queue.msg_rcv(23);
-    //printf("czekanie na 24\n");
-    queue.msg_rcv(24);
-
-    pid_sternik1 = shared_mem[3];
-    pid_sternik2 = shared_mem[4];
 
     shared_mem[7] = mainp;
 

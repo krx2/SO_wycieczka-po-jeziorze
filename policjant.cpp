@@ -37,6 +37,8 @@ int main() {
 
     pamiec[6] = getpid();
     
+    kolejka_komunikatow.msg_rcv(23);
+    kolejka_komunikatow.msg_rcv(24);
     kolejka_komunikatow.msg_rcv(25);
     kolejka_komunikatow.msg_rcv(27);
 

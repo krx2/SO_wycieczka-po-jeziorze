@@ -47,7 +47,7 @@ class pasazer {
         }
         status = 1;
         bilet = -1;
-        portfel = rand() % 100 + 1;
+        portfel = rand() % 150 + 1;
         portfel *= 100;
         //printf("Pasażer o ID %d przyjechał nad jezioro\n", id);
     }

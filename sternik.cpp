@@ -26,8 +26,24 @@ void signal_handler(int sig) {
             if (shmdt(pamiec) == -1) {
                 perror("shmdt error sternik");
             }
-            pamiec = nullptr;
         }
+        pamiec = nullptr;
+        exit(EXIT_SUCCESS);
+    }
+}
+
+void signal_handler_parent(int sig) {
+    if (sig == SIGINT) {
+        if (pid_sternik1 > 0) {
+            kill(pid_sternik1, SIGINT);
+            waitpid(pid_sternik1, NULL, 0);
+        }
+
+        if (pid_sternik2 > 0) {
+            kill(pid_sternik2, SIGINT);
+            waitpid(pid_sternik2, NULL, 0);
+        }
+
         exit(EXIT_SUCCESS);
     }
 }
@@ -176,7 +192,7 @@ void sternik(int nr) {
             printf("\033[34m[STERNIK%d]\033[0m: Wyruszam w rejs. Liczba pasażerów: %d\n", nr+1, pasazerowie);
 
             // Rejs
-            sleep(czas);
+            //sleep(czas);
 
             printf("\033[34m[STERNIK%d]\033[0m: Rozpoczynam wyładunek.\n", nr+1);
 
@@ -208,7 +224,7 @@ void sternik(int nr) {
         semafor.sem_op(1+nr, 1); // odblokowywuje pamięć
 
         semafor.sem_set_value(POMOST_WYL_SEM+nr, pasazerowie);
-        usleep(100);
+        //usleep(100);
         semafor.sem_op(14, 1);
 
         pamiec_dzielona.shm_detach(pamiec);
@@ -217,9 +233,7 @@ void sternik(int nr) {
 
 int main() {
 
-    signal(SIGUSR1, signal_handler);
-    signal(SIGUSR2, signal_handler);
-    signal(SIGINT, signal_handler);
+    signal(SIGINT, signal_handler_parent);
     
     pid_t pid_sternik = getpid();
 
